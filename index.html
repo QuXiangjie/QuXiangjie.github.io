@@ -14,13 +14,15 @@
                 <p class="subtitle">EdTech & FinTech</p>
             </div>
             <ul class="nav-links">
-                <li><a href="index.html" class="active">Home</a></li>
-                <li><a href="blog.html">Blog</a></li>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#projects">Projects</a></li>
+                <li><a href="#blog">Blog</a></li>
+                <li><a href="admin.html" class="admin-link">Admin</a></li>
             </ul>
         </div>
     </nav>
 
-    <header class="hero">
+    <header class="hero" id="home">
         <div class="container">
             <h1>Building the Future of EdTech & FinTech</h1>
             <p>Workflow-first approach to entrepreneurship, technology, and innovation</p>
@@ -33,7 +35,7 @@
             <p>I'm a workflow-first entrepreneur passionate about creating innovative solutions in EdTech and FinTech. I believe in building systems that empower people through efficient workflows and thoughtful technology.</p>
         </section>
 
-        <section class="projects-section">
+        <section class="projects-section" id="projects">
             <h2>GitHub Projects</h2>
             <div id="github-projects" class="projects-grid">
                 <div class="project-card loading">
@@ -45,13 +47,16 @@
             </div>
         </section>
 
-        <section class="recent-posts-section">
-            <h2>Recent Blog Posts</h2>
-            <div id="recent-posts" class="posts-preview">
-                <!-- Recent posts will be loaded here -->
+        <section class="blog-section" id="blog">
+            <h2>Blog</h2>
+            <div class="category-filter">
+                <button class="filter-btn active" data-category="all">All</button>
+                <button class="filter-btn" data-category="tech">Tech</button>
+                <button class="filter-btn" data-category="finance">Finance</button>
+                <button class="filter-btn" data-category="life">Life</button>
             </div>
-            <div class="view-all">
-                <a href="blog.html" class="btn">View All Posts</a>
+            <div id="blog-posts" class="posts-grid">
+                <!-- Blog posts will be loaded here -->
             </div>
         </section>
     </main>
@@ -65,6 +70,7 @@
     <script src="js/config.js"></script>
     <script src="js/github.js"></script>
     <script src="js/blog.js"></script>
-    <script src="js/home.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
