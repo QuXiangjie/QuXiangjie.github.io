@@ -10,7 +10,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Load and render GitHub projects
-    const projects = await githubService.fetchProjects(CONFIG.maxProjectsOnHome);
+    const projects = await githubService.fetchProjects(
+        CONFIG.maxProjectsOnHome,
+        CONFIG.featuredRepositories || []
+    );
     renderProjects(projects, 'github-projects', CONFIG.maxProjectsOnHome);
 
     // Load and render recent blog posts

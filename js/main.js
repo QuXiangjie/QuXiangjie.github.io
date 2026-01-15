@@ -1,40 +1,37 @@
 // Main page initialization for single-page layout
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize GitHub projects
     initializeGitHub();
-
-    // Initialize blog posts from storage
-    initializeBlog();
-
-    // Setup smooth scrolling for navigation
     setupSmoothScrolling();
-
-    // Setup category filtering
-    setupCategoryFilter();
+    setupScrollAnimations();
+    setupInsightCards();
+    setupLifeGallery();
 });
 
-function initializeGitHub() {
+let scrollObserver;
+
+async function initializeGitHub() {
     const githubService = new GitHubService(CONFIG.githubUsername);
+    const profileLink = document.getElementById('github-profile-link');
 
-    githubService.getRepositories(CONFIG.maxProjectsOnHome)
-        .then(repos => {
-            renderGitHubProjects(repos);
-        })
-        .catch(error => {
-            console.error('Error loading GitHub projects:', error);
-            document.getElementById('github-projects').innerHTML =
-                '<p class="error">Failed to load projects</p>';
-        });
+    if (profileLink) {
+        profileLink.href = githubService.getProfileUrl();
+    }
 
-    // Set GitHub profile link
-    document.getElementById('github-profile-link').href =
-        `https://github.com/${CONFIG.githubUsername}`;
-}
+    try {
+        const repos = await githubService.fetchProjects(
+            CONFIG.maxProjectsOnHome,
+            CONFIG.featuredRepositories || []
+        );
 
-function initializeBlog() {
-    // Load all posts from storage
-    const posts = blogStorage.getAllPosts();
-    renderBlogPosts(posts, 'blog-posts');
+        renderProjects(repos, 'github-projects', CONFIG.maxProjectsOnHome);
+        setupScrollAnimations();
+    } catch (error) {
+        console.error('Error loading GitHub projects:', error);
+        const container = document.getElementById('github-projects');
+        if (container) {
+            container.innerHTML = '<p class="error">Failed to load projects.</p>';
+        }
+    }
 }
 
 function setupSmoothScrolling() {
@@ -78,45 +75,176 @@ function updateActiveNavLink() {
     });
 }
 
-function setupCategoryFilter() {
-    const filterButtons = document.querySelectorAll('.filter-btn');
+function setupScrollAnimations() {
+    const animatedElements = document.querySelectorAll('[data-animate]');
+    if (!animatedElements.length) return;
 
-    filterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            // Update active button
-            filterButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
+    if (!scrollObserver) {
+        scrollObserver = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    scrollObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.2,
+            rootMargin: '0px 0px -10% 0px'
+        });
+    }
 
-            // Filter posts
-            const category = button.dataset.category;
-            const posts = blogStorage.getAllPosts();
-            const filteredPosts = category === 'all'
-                ? posts
-                : posts.filter(post => post.category === category);
+    animatedElements.forEach(element => {
+        if (element.classList.contains('is-visible')) {
+            return;
+        }
+        scrollObserver.observe(element);
+    });
+}
 
-            renderBlogPosts(filteredPosts, 'blog-posts');
+function setupInsightCards() {
+    const insightCards = document.querySelectorAll('.insight-card');
+    if (!insightCards.length) return;
+
+    insightCards.forEach(card => {
+        const link = card.querySelector('a');
+        if (!link) return;
+
+        card.setAttribute('tabindex', '0');
+        card.addEventListener('click', (event) => {
+            if (event.target.tagName.toLowerCase() === 'a') {
+                return;
+            }
+            link.click();
+        });
+
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                link.click();
+            }
         });
     });
 }
 
-function renderGitHubProjects(repos) {
-    const container = document.getElementById('github-projects');
+function setupLifeGallery() {
+    const lifeCards = Array.from(document.querySelectorAll('.life-card'));
+    if (!lifeCards.length) return;
 
-    if (!repos || repos.length === 0) {
-        container.innerHTML = '<p>No public repositories found.</p>';
-        return;
-    }
+    const groupSize = 3;
+    const totalGroups = Math.max(1, Math.ceil(lifeCards.length / groupSize));
+    const shouldRotate = totalGroups > 1;
+    let currentGroup = 0;
 
-    container.innerHTML = repos.map(repo => `
-        <div class="project-card">
-            <h3>${repo.name}</h3>
-            <p class="description">${repo.description || 'No description available'}</p>
-            <div class="meta">
-                <span>⭐ ${repo.stargazers_count}</span>
-                <span>🔀 ${repo.forks_count}</span>
-            </div>
-            ${repo.language ? `<span class="language">${repo.language}</span>` : ''}
-            <a href="${repo.html_url}" target="_blank" class="link">View Repository →</a>
+    const activateGroup = (groupIndex) => {
+        lifeCards.forEach((card, idx) => {
+            const inGroup = Math.floor(idx / groupSize) === groupIndex;
+            card.classList.toggle('is-active', inGroup);
+            card.setAttribute('tabindex', inGroup ? '0' : '-1');
+            card.setAttribute('aria-hidden', inGroup ? 'false' : 'true');
+        });
+    };
+
+    activateGroup(currentGroup);
+
+    const advanceGroup = () => {
+        currentGroup = (currentGroup + 1) % totalGroups;
+        activateGroup(currentGroup);
+    };
+
+    let rotateTimer;
+
+    const stopRotation = () => {
+        if (rotateTimer) {
+            window.clearInterval(rotateTimer);
+            rotateTimer = null;
+        }
+    };
+
+    const startRotation = () => {
+        if (!shouldRotate) return;
+        stopRotation();
+        rotateTimer = window.setInterval(advanceGroup, 6000);
+    };
+
+    startRotation();
+
+    lifeCards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            if (!card.classList.contains('is-active')) return;
+            stopRotation();
+        });
+        card.addEventListener('mouseleave', () => {
+            if (!card.classList.contains('is-active')) return;
+            startRotation();
+        });
+        card.addEventListener('focusin', () => {
+            if (!card.classList.contains('is-active')) return;
+            stopRotation();
+        });
+        card.addEventListener('focusout', () => {
+            if (!card.classList.contains('is-active')) return;
+            startRotation();
+        });
+    });
+
+    const lightbox = document.createElement('div');
+    lightbox.className = 'lightbox';
+    lightbox.innerHTML = `
+        <div class="lightbox-content">
+            <img alt="Life highlight">
+            <button class="lightbox-close" aria-label="Close gallery">×</button>
         </div>
-    `).join('');
+    `;
+
+    document.body.appendChild(lightbox);
+
+    const lightboxImage = lightbox.querySelector('img');
+    const closeButton = lightbox.querySelector('.lightbox-close');
+
+    const openLightbox = (image) => {
+        if (!image) return;
+        stopRotation();
+        lightboxImage.src = image.src;
+        lightboxImage.alt = image.alt || 'Life highlight';
+        lightbox.classList.add('active');
+        closeButton.focus({ preventScroll: true });
+    };
+
+    const closeLightbox = () => {
+        lightbox.classList.remove('active');
+        lightboxImage.removeAttribute('src');
+        startRotation();
+    };
+
+    lifeCards.forEach(card => {
+        card.addEventListener('click', () => {
+            if (!card.classList.contains('is-active')) {
+                return;
+            }
+            const image = card.querySelector('img');
+            openLightbox(image);
+        });
+
+        card.addEventListener('keydown', (event) => {
+            if ((event.key === 'Enter' || event.key === ' ') && card.classList.contains('is-active')) {
+                event.preventDefault();
+                const image = card.querySelector('img');
+                openLightbox(image);
+            }
+        });
+    });
+
+    closeButton.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (event) => {
+        if (event.target === lightbox) {
+            closeLightbox();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && lightbox.classList.contains('active')) {
+            closeLightbox();
+        }
+    });
 }
+

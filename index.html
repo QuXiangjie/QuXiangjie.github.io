@@ -1,76 +1,169 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portfolio & Blog | Workflow-first Entrepreneur</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-brand">
-                <h1>Workflow Entrepreneur</h1>
-                <p class="subtitle">EdTech & FinTech</p>
-            </div>
-            <ul class="nav-links">
-                <li><a href="#home">Home</a></li>
-                <li><a href="#projects">Projects</a></li>
-                <li><a href="#blog">Blog</a></li>
-                <li><a href="admin.html" class="admin-link">Admin</a></li>
-            </ul>
-        </div>
-    </nav>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <header class="hero" id="home">
+    <title>Mr.Q | AI/ML &amp; Agentic Workflows</title>
+    <meta
+      name="description"
+      content="Mr.Q — an entrepreneur focused on machine learning and agentic workflows. Explore selected GitHub projects and latest insights."
+    />
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <header class="site-header">
+      <nav class="navbar" aria-label="Primary navigation">
         <div class="container">
-            <h1>Building the Future of EdTech & FinTech</h1>
-            <p>Workflow-first approach to entrepreneurship, technology, and innovation</p>
+          <div class="nav-brand" aria-label="Site brand">
+            <h1>Mr.Q</h1>
+            <p class="subtitle">AI/ML &amp; Agentic Workflow</p>
+          </div>
+
+          <ul class="nav-links" role="list">
+            <li><a href="#about">About</a></li>
+            <li><a href="#projects">Projects</a></li>
+            <li><a href="#insights">Insights</a></li>
+            <li><a href="#life">Life</a></li>
+          </ul>
         </div>
+      </nav>
     </header>
 
-    <main class="container">
-        <section class="about-section">
-            <h2>About Me</h2>
-            <p>I'm a workflow-first entrepreneur passionate about creating innovative solutions in EdTech and FinTech. I believe in building systems that empower people through efficient workflows and thoughtful technology.</p>
-        </section>
+    <main id="top" class="container" tabindex="-1">
+      <!-- About -->
+      <section class="about-section" id="about" aria-labelledby="about-title" data-animate>
+        <div class="about-content">
+          <div class="about-text">
+            <h2 id="about-title">About Jack Q</h2>
+            <p>
+              I'm Jack Q, an entrepreneur focused on machine learning and agentic workflows. I
+              build practical systems that improve execution through efficient workflows and
+              thoughtful technology.
+            </p>
+          </div>
 
-        <section class="projects-section" id="projects">
-            <h2>GitHub Projects</h2>
-            <div id="github-projects" class="projects-grid">
-                <div class="project-card loading">
-                    <p>Loading projects...</p>
-                </div>
-            </div>
-            <div class="github-profile">
-                <a href="#" id="github-profile-link" target="_blank" class="btn">View Full GitHub Profile</a>
-            </div>
-        </section>
+          <figure class="about-photo" data-animate>
+            <img
+              src="images/about-photo.jpg"
+              alt="Portrait of Jack Q"
+              loading="lazy"
+              width="640"
+              height="800"
+            />
+          </figure>
+        </div>
+      </section>
 
-        <section class="blog-section" id="blog">
-            <h2>Blog</h2>
-            <div class="category-filter">
-                <button class="filter-btn active" data-category="all">All</button>
-                <button class="filter-btn" data-category="tech">Tech</button>
-                <button class="filter-btn" data-category="finance">Finance</button>
-                <button class="filter-btn" data-category="life">Life</button>
-            </div>
-            <div id="blog-posts" class="posts-grid">
-                <!-- Blog posts will be loaded here -->
-            </div>
-        </section>
+      <!-- Projects -->
+      <section class="projects-section" id="projects" aria-labelledby="projects-title" data-animate>
+        <h2 id="projects-title">Selected GitHub Projects</h2>
+
+        <div id="github-projects" class="projects-grid" aria-live="polite">
+          <div class="project-card loading">
+            <p>Loading projects...</p>
+          </div>
+        </div>
+
+        <div class="github-profile">
+          <a
+            href="#"
+            id="github-profile-link"
+            class="btn"
+            target="_blank"
+            rel="noopener"
+            aria-label="Open full GitHub profile in a new tab"
+          >
+            View Full GitHub Profile
+          </a>
+        </div>
+      </section>
+
+      <!-- Insights -->
+      <section class="insights-section" id="insights" aria-labelledby="insights-title" data-animate>
+        <h2 id="insights-title">Latest Insights</h2>
+        <p class="section-lead">
+          Follow along on LinkedIn where I share what I’m learning and building.
+        </p>
+
+        <div class="insights-grid">
+          <article class="insight-card" aria-labelledby="linkedin-title" data-animate>
+            <div class="insight-icon linkedin" aria-hidden="true">✦</div>
+
+            <h3 id="linkedin-title">LinkedIn Articles</h3>
+            <p>
+              Long-form reflections on AI/ML, agentic workflows, and building systems that scale
+              from workflow-first thinking.
+            </p>
+
+            <a
+              href="https://www.linkedin.com/in/jack-qu-6b269b250/"
+              class="btn-outline"
+              target="_blank"
+              rel="noopener"
+              aria-label="Connect with Jack Q on LinkedIn (opens in a new tab)"
+            >
+              Connect on LinkedIn
+            </a>
+          </article>
+        </div>
+      </section>
+
+      <!-- Life -->
+      <section class="life-section" id="life" aria-labelledby="life-title" data-animate>
+        <h2 id="life-title">Life In Motion</h2>
+        <p class="section-lead">
+          Life is more than work. Here are a few moments that inspire me.
+        </p>
+
+        <div class="life-gallery">
+          <figure class="life-card" data-animate>
+            <img
+              src="https://apng.onevcat.com/assets/elephant.png"
+              alt="Animated elephant mascot wearing a hat"
+              loading="lazy"
+              width="600"
+              height="600"
+            />
+            <figcaption>A playful reminder to stay curious and light-hearted.</figcaption>
+          </figure>
+
+          <figure class="life-card" data-animate>
+            <img
+              src="images/about-photo.jpg"
+              alt="Collaborating with a startup team"
+              loading="lazy"
+              width="600"
+              height="600"
+            />
+            <figcaption>Collaborating with builders and founders.</figcaption>
+          </figure>
+
+          <figure class="life-card" data-animate>
+            <img
+              src="images/about-photo.jpg"
+              alt="Exploring new cities"
+              loading="lazy"
+              width="600"
+              height="600"
+            />
+            <figcaption>Exploring new cities in search of insight.</figcaption>
+          </figure>
+        </div>
+      </section>
     </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 Workflow Entrepreneur. All rights reserved.</p>
-        </div>
+    <footer class="site-footer">
+      <div class="container">
+        <p>&copy; 2026 Mr.Q. All rights reserved.</p>
+      </div>
     </footer>
 
+    <!-- Keep these as normal scripts; github.js should use an async init function (no top-level await). -->
     <script src="js/config.js"></script>
     <script src="js/github.js"></script>
-    <script src="js/blog.js"></script>
-    <script src="js/storage.js"></script>
     <script src="js/main.js"></script>
-</body>
+  </body>
 </html>
