@@ -24,7 +24,7 @@
 
           <ul class="nav-links" role="list">
             <li><a href="#about">About</a></li>
-            <li><a href="#projects">Projects</a></li>
+            <li><a href="#projects">Experience</a></li>
             <li><a href="#insights">Insights</a></li>
             <li><a href="#life">Life</a></li>
           </ul>
@@ -49,16 +49,122 @@
         <p class="tech-cube-caption">Always iterating, always shipping.</p>
       </section>
 
+      <!-- Journey -->
+      <section class="jx-journey" id="journey" data-animate>
+        <style>
+          .jx-journey{background:radial-gradient(900px 360px at 50% -12%,rgba(124,176,255,.10),transparent 60%),linear-gradient(165deg,#0b1226 0%,#0d1730 55%,#0a0f20 100%);padding:50px 0 52px;margin:26px 0;border-radius:24px;border:1px solid rgba(148,163,184,.16);overflow:hidden}
+          .jx-inner{max-width:980px;margin:0 auto;padding:0 22px}
+          .jx-head{text-align:center}
+          .jx-kicker{font-size:12px;letter-spacing:.30em;text-transform:uppercase;color:#9db4e6;font-weight:700}
+          .jx-title{margin:12px 0 8px;font-size:clamp(23px,4vw,38px);line-height:1.1;color:#f1f5f9;letter-spacing:-.02em;font-weight:800;border:none}
+          .jx-title::after,.jx-title::before{content:none!important;display:none!important}
+          .jx-title span{color:#e7c98a}
+          .jx-sub{margin:0;color:#94a3b8;font-size:15px}
+          .jx-stage{margin-top:18px}
+          .jx-stage svg{display:block;width:100%;height:auto}
+          .jx-mk{fill:none;stroke:#e7c98a;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 5px rgba(231,201,138,.22))}
+          .jx-mk.jx-faint{opacity:.5;stroke-width:1.7}
+          .jx-base{stroke:rgba(148,163,184,.28);stroke-width:1.2}
+          .jx-lab{fill:#e7c98a;font-size:14px;font-weight:700;letter-spacing:.02em}
+          .jx-sub2{fill:#8aa0c8;font-size:11px;font-weight:600;letter-spacing:.04em}
+          .jx-route{fill:none;stroke:#7cb0ff;stroke-width:2.1;stroke-dasharray:2 9;stroke-linecap:round;opacity:.9;animation:jxdash 1.5s linear infinite}
+          @keyframes jxdash{to{stroke-dashoffset:-22}}
+          .jx-plane path{fill:#dbe7ff;filter:drop-shadow(0 0 4px rgba(124,176,255,.75))}
+          .jx-stars circle{fill:#cdd9f2;animation:jxtw 2.6s ease-in-out infinite}
+          .jx-stars circle:nth-child(2n){fill:#e7c98a;animation-delay:-1s}
+          .jx-stars circle:nth-child(3n){animation-delay:-1.7s}
+          @keyframes jxtw{0%,100%{opacity:.25}50%{opacity:.95}}
+          @media(max-width:640px){.jx-journey{padding:34px 0 36px;border-radius:18px}}
+        </style>
+        <div class="jx-inner">
+          <div class="jx-head">
+            <div class="jx-kicker">My Journey</div>
+            <h2 class="jx-title">From <span>Beijing</span> to <span>Paris</span> to <span>New York</span></h2>
+            <p class="jx-sub">Three cities, one path — toward technology, craft, and new opportunity.</p>
+          </div>
+          <div class="jx-stage">
+            <svg viewBox="0 0 900 372" role="img" aria-label="Journey from Beijing to Paris to New York, marked by the Great Wall, Eiffel Tower, and Statue of Liberty">
+              <g class="jx-stars">
+                <circle cx="96" cy="64" r="1.6"/><circle cx="210" cy="44" r="1.2"/><circle cx="330" cy="70" r="1.5"/>
+                <circle cx="470" cy="40" r="1.3"/><circle cx="590" cy="66" r="1.6"/><circle cx="700" cy="46" r="1.2"/>
+                <circle cx="800" cy="74" r="1.5"/><circle cx="150" cy="96" r="1.1"/><circle cx="760" cy="100" r="1.3"/>
+              </g>
+
+              <!-- flight path + plane -->
+              <path id="jx-route" class="jx-route" d="M150 214 C 320 116 580 116 740 198"/>
+              <g class="jx-plane">
+                <animateMotion dur="9s" repeatCount="indefinite" rotate="auto"><mpath href="#jx-route"/></animateMotion>
+                <path d="M-9 -5 L9 0 L-9 5 L-3 0 Z"/>
+              </g>
+
+              <line class="jx-base" x1="60" y1="306" x2="840" y2="306"/>
+
+              <!-- Great Wall (Beijing) -->
+              <g>
+                <g class="jx-mk">
+                  <line x1="120" y1="304" x2="266" y2="250"/>
+                  <line x1="124" y1="316" x2="268" y2="260"/>
+                  <path class="jx-faint" d="M152 294 v-8 M180 284 v-8 M208 273 v-8 M236 263 v-8"/>
+                  <path d="M104 312 v-46 h38 v46"/>
+                  <path class="jx-faint" d="M104 266 v-7 h9 v7 m5 0 v-7 h9 v7 m6 0 v-7 h9 v7"/>
+                  <rect x="114" y="280" width="18" height="16" rx="1" class="jx-faint"/>
+                </g>
+                <text class="jx-lab" x="150" y="334" text-anchor="middle">Beijing</text>
+                <text class="jx-sub2" x="150" y="350" text-anchor="middle">where it started</text>
+              </g>
+
+              <!-- Eiffel Tower (Paris) -->
+              <g>
+                <g class="jx-mk">
+                  <line x1="450" y1="146" x2="450" y2="174"/>
+                  <path d="M450 174 C446 206 436 256 408 304"/>
+                  <path d="M450 174 C454 206 464 256 492 304"/>
+                  <line x1="430" y1="240" x2="470" y2="240"/>
+                  <line x1="416" y1="286" x2="484" y2="286"/>
+                  <path d="M419 304 Q450 273 481 304"/>
+                </g>
+                <g class="jx-mk jx-faint">
+                  <path d="M432 240 L450 286 L468 240"/>
+                  <line x1="441" y1="206" x2="459" y2="206"/>
+                </g>
+                <text class="jx-lab" x="450" y="334" text-anchor="middle">Paris</text>
+                <text class="jx-sub2" x="450" y="350" text-anchor="middle">study &amp; growth</text>
+              </g>
+
+              <!-- Statue of Liberty (New York) -->
+              <g>
+                <g class="jx-mk">
+                  <path d="M708 304 L752 304 L746 276 L714 276 Z"/>
+                  <line x1="712" y1="290" x2="748" y2="290" class="jx-faint"/>
+                  <path d="M717 276 C719 252 721 234 726 218 L734 218 C739 234 741 252 743 276"/>
+                  <path d="M723 242 l-11 7"/>
+                  <rect x="704" y="246" width="12" height="15" rx="1" transform="rotate(-18 710 253)" class="jx-faint"/>
+                  <circle cx="730" cy="210" r="7"/>
+                  <path class="jx-faint" d="M722 205 l-4 -6 M727 202 l-2 -7 M730 201 l0 -8 M733 202 l2 -7 M738 205 l4 -6"/>
+                  <path d="M736 220 C744 208 750 192 754 174"/>
+                  <path d="M749 174 h10"/>
+                  <path d="M751 168 q3 -9 6 0 q-3 5 -6 0 Z"/>
+                </g>
+                <text class="jx-lab" x="730" y="334" text-anchor="middle">New York</text>
+                <text class="jx-sub2" x="730" y="350" text-anchor="middle">the opportunity</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </section>
+
       <!-- About -->
       <section class="about-section" id="about" aria-labelledby="about-title" data-animate>
         <div class="about-content">
           <div class="about-text">
             <h2 id="about-title">About Jack Qu</h2>
             <p>
-              I'm Jack Qu, an AI Engineer who ships production agentic systems — LLM agents that do
-              real work end-to-end, built on the Claude Agent SDK with MCP and RAG. At an EdTech
-              company I built a multi-agent RFP platform (discovery → product matching → proposal →
-              a real-time voice agent) and a production education-standards platform on AWS.
+              I'm Jack Qu, an AI Engineer who turns messy business processes into production agentic
+              systems. What drives me is the business side — finding a slow, manual workflow and
+              rebuilding it as an LLM agent that does the work end-to-end. At an EdTech company I built
+              a multi-agent RFP platform on the Claude Agent SDK (discovery → product matching with
+              MCP + RAG → proposal → a real-time voice agent) and a production education-standards
+              platform on AWS — surfacing 4× more qualified opportunities and lifting win rate.
             </p>
           </div>
 
@@ -76,7 +182,7 @@
 
       <!-- Projects -->
       <section class="projects-section" id="projects" aria-labelledby="projects-title" data-animate>
-        <h2 id="projects-title">Selected Work — Case Studies</h2>
+        <h2 id="projects-title">Experience</h2>
 
         <div class="projects-grid">
           <article class="project-card" data-animate>
@@ -120,18 +226,35 @@
 
       <!-- Insights -->
       <section class="insights-section" id="insights" aria-labelledby="insights-title" data-animate>
-        <h2 id="insights-title">Latest Insights</h2>
+        <h2 id="insights-title">Insights</h2>
         <p class="section-lead">
-          Follow along on LinkedIn where I share what I’m learning and building.
+          My reading space — short notes on AI engineering, agentic systems, and what I'm learning and building.
         </p>
 
         <div class="insights-grid">
+          <article class="insight-card" aria-labelledby="blog-title" data-animate>
+            <div class="insight-icon" aria-hidden="true">✎</div>
+
+            <h3 id="blog-title">Blog</h3>
+            <p>
+              Essays and notes as I build.
+            </p>
+
+            <a
+              href="blog/index.html"
+              class="btn-outline"
+              aria-label="Read the blog"
+            >
+              Read the blog →
+            </a>
+          </article>
+
           <article class="insight-card" aria-labelledby="linkedin-title" data-animate>
             <div class="insight-icon linkedin" aria-hidden="true">✦</div>
 
-            <h3 id="linkedin-title">LinkedIn Articles</h3>
+            <h3 id="linkedin-title">LinkedIn</h3>
             <p>
-              Reflections on AI/ML, agentic workflows
+              Reflections on AI/ML and agentic workflows.
             </p>
 
             <a
@@ -139,7 +262,7 @@
               class="btn-outline"
               target="_blank"
               rel="noopener"
-              aria-label="Connect with Jack Q on LinkedIn (opens in a new tab)"
+              aria-label="Connect with Jack Qu on LinkedIn (opens in a new tab)"
             >
               Connect on LinkedIn
             </a>
@@ -153,6 +276,13 @@
         <p class="section-lead">
           Life is more than work. Here are a few moments that inspire me.
         </p>
+
+        <div class="life-tags" style="display:flex;flex-wrap:wrap;gap:10px;margin:2px 0 24px">
+          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">🏸 Competitive badminton athlete</span>
+          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">📷 Fujifilm photography</span>
+          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">⛳️ Learning golf</span>
+          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">🎿 Skiing</span>
+        </div>
 
         <div class="life-gallery">
           <figure class="life-card" data-animate>
