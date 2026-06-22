@@ -18,7 +18,7 @@
       <nav class="navbar" aria-label="Primary navigation">
         <div class="container">
           <div class="nav-brand" aria-label="Site brand">
-            <h1>Mr.Qu</h1>
+            <h1>Jack Qu</h1>
             <p class="subtitle">AI Engineer · Agentic Systems</p>
           </div>
 
@@ -33,57 +33,47 @@
     </header>
 
     <main id="top" class="container" tabindex="-1">
-      <!-- Tech Cube Visual -->
-      <section class="tech-cube-section" data-animate>
-        <div class="tech-cube-wrapper" role="img" aria-label="Rotating wireframe cube representing my focus on emerging technology">
-          <div class="tech-cube">
-            <span class="tech-cube__face tech-cube__face--front"></span>
-            <span class="tech-cube__face tech-cube__face--back"></span>
-            <span class="tech-cube__face tech-cube__face--left"></span>
-            <span class="tech-cube__face tech-cube__face--right"></span>
-            <span class="tech-cube__face tech-cube__face--top"></span>
-            <span class="tech-cube__face tech-cube__face--bottom"></span>
-          </div>
-          <div class="tech-cube-glow"></div>
-        </div>
-        <p class="tech-cube-caption">Always iterating, always shipping.</p>
-      </section>
-
-      <!-- Journey -->
+      <!-- Cube + Journey (reordered below Experience via CSS order) -->
       <section class="jx-journey" id="journey" data-animate>
         <style>
-          .jx-journey{background:radial-gradient(900px 360px at 50% -12%,rgba(124,176,255,.10),transparent 60%),linear-gradient(165deg,#0b1226 0%,#0d1730 55%,#0a0f20 100%);padding:50px 0 52px;margin:26px 0;border-radius:24px;border:1px solid rgba(148,163,184,.16);overflow:hidden}
+          /* page order: About -> Experience -> Cube+Journey -> Insights -> Life */
+          #top{display:flex;flex-direction:column}
+          #about{order:1}#projects{order:2}#journey{order:3}#insights{order:4}#life{order:5}
+
+          .jx-journey{position:relative;background:radial-gradient(780px 360px at 50% 44%,rgba(231,201,138,.12),transparent 62%),radial-gradient(620px 300px at 50% 50%,rgba(244,120,120,.10),transparent 60%),linear-gradient(165deg,#0c1224 0%,#101a32 55%,#0a0f1e 100%);padding:42px 0 38px;margin:26px 0;border-radius:24px;border:1px solid rgba(148,163,184,.16);overflow:hidden}
           .jx-inner{max-width:980px;margin:0 auto;padding:0 22px}
           .jx-head{text-align:center}
-          .jx-kicker{font-size:12px;letter-spacing:.30em;text-transform:uppercase;color:#9db4e6;font-weight:700}
-          .jx-title{margin:12px 0 8px;font-size:clamp(23px,4vw,38px);line-height:1.1;color:#f1f5f9;letter-spacing:-.02em;font-weight:800;border:none}
+          .jx-kicker{font-size:12px;letter-spacing:.30em;text-transform:uppercase;color:#caa86a;font-weight:700}
+          .jx-title{margin:12px 0 8px;font-size:clamp(23px,4vw,38px);line-height:1.1;color:#f4ede0;letter-spacing:-.02em;font-weight:800;border:none}
           .jx-title::after,.jx-title::before{content:none!important;display:none!important}
           .jx-title span{color:#e7c98a}
-          .jx-sub{margin:0;color:#94a3b8;font-size:15px}
-          .jx-stage{margin-top:18px}
-          .jx-stage svg{display:block;width:100%;height:auto}
-          .jx-mk{fill:none;stroke:#e7c98a;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 5px rgba(231,201,138,.22))}
+          .jx-sub{margin:0;color:#a9b4c9;font-size:15px}
+          .jx-stage{position:relative;margin-top:6px;display:grid;place-items:center}
+          .jx-stage > svg{grid-area:1/1;display:block;width:100%;height:auto}
+          .jx-cube{grid-area:1/1;margin:0;align-self:center;justify-self:center;z-index:2;transform:translateY(-24%)}
+          .jx-mk{fill:none;stroke:#e7c98a;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 5px rgba(231,201,138,.25))}
           .jx-mk.jx-faint{opacity:.5;stroke-width:1.7}
-          .jx-base{stroke:rgba(148,163,184,.28);stroke-width:1.2}
+          .jx-base{stroke:rgba(231,201,138,.20);stroke-width:1.2}
           .jx-lab{fill:#e7c98a;font-size:14px;font-weight:700;letter-spacing:.02em}
-          .jx-sub2{fill:#8aa0c8;font-size:11px;font-weight:600;letter-spacing:.04em}
-          .jx-route{fill:none;stroke:#7cb0ff;stroke-width:2.1;stroke-dasharray:2 9;stroke-linecap:round;opacity:.9;animation:jxdash 1.5s linear infinite}
+          .jx-sub2{fill:#9aa6bf;font-size:11px;font-weight:600;letter-spacing:.04em}
+          .jx-route{fill:none;stroke:#d9b878;stroke-width:2.1;stroke-dasharray:2 9;stroke-linecap:round;opacity:.85;animation:jxdash 1.5s linear infinite}
           @keyframes jxdash{to{stroke-dashoffset:-22}}
-          .jx-plane path{fill:#dbe7ff;filter:drop-shadow(0 0 4px rgba(124,176,255,.75))}
-          .jx-stars circle{fill:#cdd9f2;animation:jxtw 2.6s ease-in-out infinite}
-          .jx-stars circle:nth-child(2n){fill:#e7c98a;animation-delay:-1s}
+          .jx-plane path{fill:#f4e6c4;filter:drop-shadow(0 0 4px rgba(231,201,138,.8))}
+          .jx-stars circle{fill:#e7d6ad;animation:jxtw 2.6s ease-in-out infinite}
+          .jx-stars circle:nth-child(2n){fill:#cdd9f2;animation-delay:-1s}
           .jx-stars circle:nth-child(3n){animation-delay:-1.7s}
           @keyframes jxtw{0%,100%{opacity:.25}50%{opacity:.95}}
-          @media(max-width:640px){.jx-journey{padding:34px 0 36px;border-radius:18px}}
+          .jx-cap{text-align:center;margin-top:2px;color:#9aa6bf;font-size:13px;letter-spacing:.02em}
+          @media(max-width:640px){.jx-journey{padding:28px 0 26px;border-radius:18px}.jx-cube{transform:translateY(-18%) scale(.82)}}
         </style>
         <div class="jx-inner">
           <div class="jx-head">
             <div class="jx-kicker">My Journey</div>
-            <h2 class="jx-title">From <span>Beijing</span> to <span>Paris</span> to <span>New York</span></h2>
+            <h2 class="jx-title">From <span>China</span> to <span>France</span> to the <span>U.S.</span></h2>
             <p class="jx-sub">Three cities, one path — toward technology, craft, and new opportunity.</p>
           </div>
           <div class="jx-stage">
-            <svg viewBox="0 0 900 372" role="img" aria-label="Journey from Beijing to Paris to New York, marked by the Great Wall, Eiffel Tower, and Statue of Liberty">
+            <svg viewBox="0 0 900 372" role="img" aria-label="Journey from China to France to the U.S., marked by the Great Wall, Eiffel Tower, and Statue of Liberty">
               <g class="jx-stars">
                 <circle cx="96" cy="64" r="1.6"/><circle cx="210" cy="44" r="1.2"/><circle cx="330" cy="70" r="1.5"/>
                 <circle cx="470" cy="40" r="1.3"/><circle cx="590" cy="66" r="1.6"/><circle cx="700" cy="46" r="1.2"/>
@@ -109,7 +99,7 @@
                   <path class="jx-faint" d="M104 266 v-7 h9 v7 m5 0 v-7 h9 v7 m6 0 v-7 h9 v7"/>
                   <rect x="114" y="280" width="18" height="16" rx="1" class="jx-faint"/>
                 </g>
-                <text class="jx-lab" x="150" y="334" text-anchor="middle">Beijing</text>
+                <text class="jx-lab" x="150" y="334" text-anchor="middle">China</text>
                 <text class="jx-sub2" x="150" y="350" text-anchor="middle">where it started</text>
               </g>
 
@@ -127,7 +117,7 @@
                   <path d="M432 240 L450 286 L468 240"/>
                   <line x1="441" y1="206" x2="459" y2="206"/>
                 </g>
-                <text class="jx-lab" x="450" y="334" text-anchor="middle">Paris</text>
+                <text class="jx-lab" x="450" y="334" text-anchor="middle">France</text>
                 <text class="jx-sub2" x="450" y="350" text-anchor="middle">study &amp; growth</text>
               </g>
 
@@ -145,11 +135,23 @@
                   <path d="M749 174 h10"/>
                   <path d="M751 168 q3 -9 6 0 q-3 5 -6 0 Z"/>
                 </g>
-                <text class="jx-lab" x="730" y="334" text-anchor="middle">New York</text>
+                <text class="jx-lab" x="730" y="334" text-anchor="middle">USA</text>
                 <text class="jx-sub2" x="730" y="350" text-anchor="middle">the opportunity</text>
               </g>
             </svg>
+            <div class="tech-cube-wrapper jx-cube" role="img" aria-label="Rotating wireframe cube">
+              <div class="tech-cube">
+                <span class="tech-cube__face tech-cube__face--front"></span>
+                <span class="tech-cube__face tech-cube__face--back"></span>
+                <span class="tech-cube__face tech-cube__face--left"></span>
+                <span class="tech-cube__face tech-cube__face--right"></span>
+                <span class="tech-cube__face tech-cube__face--top"></span>
+                <span class="tech-cube__face tech-cube__face--bottom"></span>
+              </div>
+              <div class="tech-cube-glow"></div>
+            </div>
           </div>
+          <p class="jx-cap">Always iterating, always shipping.</p>
         </div>
       </section>
 
@@ -157,15 +159,19 @@
       <section class="about-section" id="about" aria-labelledby="about-title" data-animate>
         <div class="about-content">
           <div class="about-text">
-            <h2 id="about-title">About Jack Qu</h2>
+            <span class="hero-eyebrow">Jack Qu · AI Engineer · Agentic Systems</span>
+            <h2 id="about-title" class="hero-h1">I turn messy business processes into production agentic systems.</h2>
             <p>
-              I'm Jack Qu, an AI Engineer who turns messy business processes into production agentic
-              systems. What drives me is the business side — finding a slow, manual workflow and
-              rebuilding it as an LLM agent that does the work end-to-end. At an EdTech company I built
-              a multi-agent RFP platform on the Claude Agent SDK (discovery → product matching with
-              MCP + RAG → proposal → a real-time voice agent) and a production education-standards
-              platform on AWS — surfacing 4× more qualified opportunities and lifting win rate.
+              An AI Engineer driven by the business side — I find a slow, manual workflow and rebuild it as an
+              LLM agent that does the work end-to-end. At an EdTech company I built a multi-agent RFP platform on the
+              Claude Agent SDK (discovery → product matching with MCP + RAG → proposal → a real-time voice agent) and a
+              production education-standards platform on AWS — surfacing 4× more qualified opportunities and lifting win rate.
             </p>
+            <div class="hero-cta">
+              <a class="btn" href="#projects">View case studies →</a>
+              <a class="btn-ghost" href="https://github.com/QuXiangjie" target="_blank" rel="noopener">GitHub</a>
+              <a class="btn-ghost" href="https://www.linkedin.com/in/jack-qu-6b269b250/" target="_blank" rel="noopener">LinkedIn</a>
+            </div>
           </div>
 
           <figure class="about-photo" data-animate>
@@ -274,15 +280,8 @@
       <section class="life-section" id="life" aria-labelledby="life-title" data-animate>
         <h2 id="life-title">Life In Motion</h2>
         <p class="section-lead">
-          Life is more than work. Here are a few moments that inspire me.
+          Life is more than work. I'm a competitive badminton player 🏸 — and these days I'm learning golf ⛳️ and skiing 🎿. The moments in between, I capture on my Fujifilm 📷.
         </p>
-
-        <div class="life-tags" style="display:flex;flex-wrap:wrap;gap:10px;margin:2px 0 24px">
-          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">🏸 Competitive badminton athlete</span>
-          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">📷 Fujifilm photography</span>
-          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">⛳️ Learning golf</span>
-          <span style="font-size:14px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:7px 14px;border-radius:999px">🎿 Skiing</span>
-        </div>
 
         <div class="life-gallery">
           <figure class="life-card" data-animate>
@@ -356,7 +355,13 @@
 
     <footer class="site-footer">
       <div class="container">
-        <p>&copy; 2026 Mr.Q. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="https://github.com/QuXiangjie" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.linkedin.com/in/jack-qu-6b269b250/" target="_blank" rel="noopener">LinkedIn</a>
+          <a href="mailto:qxjdaizi@gmail.com">Email</a>
+          <a href="#top">Back to top ↑</a>
+        </div>
+        <p>&copy; 2026 Jack Qu · AI Engineer · Agentic Systems</p>
       </div>
     </footer>
 

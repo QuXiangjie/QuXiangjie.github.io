@@ -814,3 +814,57 @@ footer {
         gap: 2.75rem;
     }
 }
+
+/* ============ Polish pass: hero, cards, footer ============ */
+
+/* Hero (top About-as-hero) */
+.hero-eyebrow{
+    display:inline-block;
+    font-family:'IBM Plex Mono','Courier New',monospace;
+    font-size:.78rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--primary-color); font-weight:600; margin-bottom:.9rem;
+}
+.hero-h1{
+    font-family:'IBM Plex Mono','Courier New',monospace;
+    font-size:clamp(1.7rem, 1.05rem + 2.5vw, 2.7rem) !important;
+    line-height:1.13; letter-spacing:-.02em; color:var(--text-color);
+    margin-bottom:1.1rem !important; display:block !important; padding-bottom:0 !important;
+}
+.hero-h1::after{ content:none !important; display:none !important; }
+.hero-cta{ display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1.6rem; }
+.btn{ border-radius:999px; }
+.btn-ghost{
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.72rem 1.35rem; border-radius:999px;
+    border:1px solid var(--border-color); color:var(--text-color);
+    font-weight:600; font-size:.9rem; text-decoration:none;
+    transition:border-color var(--transition-default), color var(--transition-default), transform var(--transition-default);
+}
+.btn-ghost:hover{ border-color:var(--primary-color); color:var(--primary-color); transform:translateY(-2px); }
+
+/* Experience cards: auto-number + animated top accent */
+.projects-grid{ counter-reset:cardnum; }
+.project-card{ position:relative; overflow:hidden; }
+.project-card::before{
+    counter-increment:cardnum; content:"0" counter(cardnum);
+    position:absolute; top:14px; right:16px;
+    font-family:'IBM Plex Mono',monospace; font-size:.8rem; font-weight:600;
+    color:rgba(20,20,20,.16); letter-spacing:.02em;
+}
+.project-card::after{
+    content:""; position:absolute; top:0; left:0; width:100%; height:3px;
+    background:linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    transform:scaleX(0); transform-origin:left; transition:transform .35s ease;
+}
+.project-card:hover::after, .project-card:focus-within::after{ transform:scaleX(1); }
+.project-card h3{ padding-right:2.2rem; }
+
+/* Footer links */
+.footer-links{ display:flex; justify-content:center; flex-wrap:wrap; gap:1.6rem; margin-bottom:1rem; }
+.footer-links a{ color:var(--text-light); font-weight:600; font-size:.9rem; text-decoration:none; transition:color var(--transition-default); }
+.footer-links a:hover{ color:var(--primary-color); }
+
+@media (max-width:768px){
+    .hero-cta{ justify-content:center; }
+    .about-content .about-text{ display:flex; flex-direction:column; align-items:center; }
+}
