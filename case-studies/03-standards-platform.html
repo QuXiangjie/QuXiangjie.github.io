@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Education Standards Platform — Case Study · Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="topnav"><a href="../index.html#projects">← Back to site</a><a href="index.html">All case studies →</a></nav>
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Project 03 · Production · AWS</span>
+  <h1>Education Standards Platform</h1>
+  <p class="sub">Turn standards PDFs into a structured hierarchy and match products to exactly what each district must teach — shipped to production on AWS.</p>
+  <div class="tags"><span>FastAPI + DDD</span><span>Claude tool-use</span><span>Cognito SSO</span><span>AWS ECS</span><span>GitHub Actions CI/CD</span></div>
+</div></header>
+
+<main class="wrap">
+  <section class="block"><h2>The problem</h2>
+    <p class="lead">Winning education bids requires proving alignment to the exact state standards each district must satisfy — historically a slow, manual task owned by curriculum experts.</p></section>
+
+  <section class="block"><h2>What I built</h2>
+    <ul class="pts">
+      <li>Architected and shipped a <b>production FastAPI platform (Domain-Driven Design) on AWS</b> — ECS Fargate, RDS, ECR, Secrets Manager, ALB, Cognito OIDC/SSO, and GitHub Actions OIDC CI/CD.</li>
+      <li>Built a <b>Claude (Sonnet) tool-use pipeline</b> that extracts standards from PDFs into a 6-level hierarchy; a topological sort plus UUID assignment maps each standard to its parent before insert.</li>
+      <li>Enforced bounded-context isolation with import-linter and covered the pipeline with integration, Playwright e2e, and unit tests; a <b>human-review staging queue</b> with content-hash dedup gates every AI extraction before commit.</li>
+      <li>Modeled the hierarchy in Postgres and generated stakeholder <b>correlation reports</b> (JSON / Excel / PDF) of per-standard coverage and gaps.</li>
+    </ul></section>
+
+  <section class="block"><h2>System architecture</h2>
+    <div class="ph"><div class="ico">🏛️</div><div class="t">Architecture diagram — coming soon</div><div class="d">FastAPI/DDD · Claude extraction · Postgres hierarchy · AWS ECS/RDS/Cognito · CI/CD. (Upload diagram here.)</div></div></section>
+
+  <section class="block"><h2>Demo</h2>
+    <div class="ph video"><div class="ico">▶</div><div class="t">Walkthrough video — coming soon</div><div class="d">PDF → extracted hierarchy → product-to-standard coverage report.</div></div></section>
+
+  <section class="block"><h2>Stack</h2>
+    <div class="tech"><span>FastAPI</span><span>SQLAlchemy / DDD</span><span>Claude tool-use</span><span>Postgres</span><span>AWS ECS Fargate · RDS · Cognito</span><span>GitHub Actions</span><span>Playwright</span></div></section>
+
+  <section class="block"><h2>Outcome</h2>
+    <p><span class="metric">Standards alignment, automated at national scale</span> Turned a slow, expert-only task into a repeatable, reviewable workflow.</p></section>
+
+  <div class="backbar"><a href="02-product-matching-mcp.html">← Prev: Product-Matching MCP</a><a href="04-proposal-builder.html">Next: Proposal Builder →</a><a href="../index.html">Home</a></div>
+</main>
+<footer class="wrap">Jack Qu · AI Engineer · case study</footer>
+</body></html>

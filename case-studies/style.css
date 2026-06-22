@@ -1,0 +1,47 @@
+/* Shared styles for the case-study pages (one per résumé project). */
+:root{
+  --ink:#0f172a; --muted:#475569; --soft:#64748b; --line:#e2e8f0;
+  --bg:#f7f8fb; --card:#fff; --accent:#2563eb; --accent2:#0ea5e9;
+  --good:#0f766e; --good-soft:#ecfdf5; --radius:16px; --maxw:980px;
+  --shadow:0 1px 2px rgba(15,23,42,.04), 0 8px 28px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.62;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.topnav{max-width:var(--maxw);margin:0 auto;padding:18px 22px;font-size:14px;display:flex;justify-content:space-between}
+.topnav a{color:var(--soft);font-weight:600}
+.hero{background:radial-gradient(1100px 380px at 12% -10%,rgba(14,165,233,.18),transparent 60%),
+  linear-gradient(135deg,#0b1f4d 0%,#123a8a 48%,#1d4ed8 100%);color:#fff;padding:50px 0 44px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;inset:0;background:radial-gradient(700px 280px at 92% 120%,rgba(56,189,248,.22),transparent 60%)}
+.hero .wrap{position:relative;z-index:1}
+.eyebrow{display:inline-block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  color:#bfdbfe;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);padding:6px 12px;border-radius:999px}
+.hero h1{font-size:clamp(26px,4.6vw,38px);margin:16px 0 10px;letter-spacing:-.02em;line-height:1.12}
+.hero .sub{font-size:17px;color:#cbd5e1;max-width:680px;margin:0}
+.hero .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}
+.hero .tags span{font-size:11.5px;font-weight:600;color:#dbeafe;background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.20);padding:4px 10px;border-radius:7px}
+main{padding:36px 0 60px}
+section.block{margin:0 0 30px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);font-weight:700;margin:0 0 12px}
+.lead{font-size:16px;color:var(--muted);max-width:760px}
+ul.pts{list-style:none;padding:0;margin:6px 0 0}
+ul.pts li{position:relative;padding-left:20px;margin:8px 0;font-size:15px}
+ul.pts li::before{content:"▸";position:absolute;left:0;color:var(--accent);font-weight:700}
+ul.pts b{color:var(--ink)}
+.metric{display:inline-block;background:var(--good-soft);color:var(--good);border:1px solid #bbf7e6;
+  border-radius:10px;padding:6px 12px;font-weight:700;font-size:14px;margin:2px 8px 2px 0}
+.tech{display:flex;flex-wrap:wrap;gap:7px}
+.tech span{font-size:12px;font-weight:600;color:#334155;background:#f1f5f9;border:1px solid var(--line);padding:4px 10px;border-radius:7px}
+/* placeholders for the user to fill later */
+.ph{border:2px dashed #cbd5e1;border-radius:var(--radius);background:#fff;padding:30px 22px;text-align:center;color:var(--soft)}
+.ph .ico{font-size:26px}
+.ph .t{font-weight:700;color:#334155;margin:6px 0 2px;font-size:15px}
+.ph .d{font-size:13px}
+.ph.video{aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.backbar{border-top:1px solid var(--line);padding-top:18px;margin-top:6px;font-size:14px;display:flex;gap:16px;flex-wrap:wrap}
+footer{padding:0 0 50px;color:var(--soft);font-size:12.5px}

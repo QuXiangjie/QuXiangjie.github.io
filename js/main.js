@@ -1,6 +1,6 @@
 // Main page initialization for single-page layout
 document.addEventListener('DOMContentLoaded', () => {
-    initializeGitHub();
+    // Projects are now static case-study cards (see index.html) — no GitHub fetch.
     setupSmoothScrolling();
     setupScrollAnimations();
     setupInsightCards();

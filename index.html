@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Mr.Qu | AI/ML &amp; Agentic Workflows</title>
+    <title>Jack Qu | AI Engineer · Agentic Systems</title>
     <meta
       name="description"
-      content="Mr.Qu — an entrepreneur focused on machine learning and agentic workflows. Explore selected GitHub projects and latest insights."
+      content="Jack Qu — AI Engineer building production agentic systems with the Claude Agent SDK, MCP, and RAG. Selected case studies and insights."
     />
 
     <link rel="stylesheet" href="css/style.css" />
@@ -19,7 +19,7 @@
         <div class="container">
           <div class="nav-brand" aria-label="Site brand">
             <h1>Mr.Qu</h1>
-            <p class="subtitle">AI/ML &amp; Agentic Workflow</p>
+            <p class="subtitle">AI Engineer · Agentic Systems</p>
           </div>
 
           <ul class="nav-links" role="list">
@@ -55,9 +55,10 @@
           <div class="about-text">
             <h2 id="about-title">About Jack Qu</h2>
             <p>
-              I'm Jack Qu, an entrepreneur focused on machine learning and agentic workflows. I
-              build practical systems that improve execution through efficient workflows and
-              thoughtful technology.
+              I'm Jack Qu, an AI Engineer who ships production agentic systems — LLM agents that do
+              real work end-to-end, built on the Claude Agent SDK with MCP and RAG. At an EdTech
+              company I built a multi-agent RFP platform (discovery → product matching → proposal →
+              a real-time voice agent) and a production education-standards platform on AWS.
             </p>
           </div>
 
@@ -75,24 +76,44 @@
 
       <!-- Projects -->
       <section class="projects-section" id="projects" aria-labelledby="projects-title" data-animate>
-        <h2 id="projects-title">GitHub Projects</h2>
+        <h2 id="projects-title">Selected Work — Case Studies</h2>
 
-        <div id="github-projects" class="projects-grid" aria-live="polite">
-          <div class="project-card loading">
-            <p>Loading projects...</p>
-          </div>
+        <div class="projects-grid">
+          <article class="project-card" data-animate>
+            <h3>RFP Opportunity Discovery</h3>
+            <p class="description">Autonomous agent on the Claude Agent SDK that hunts K-12 procurement opportunities across 19,600+ districts.</p>
+            <span class="language">Claude Agent SDK · WebSearch</span>
+            <a class="link" href="case-studies/01-rfp-discovery.html">View case study →</a>
+          </article>
+          <article class="project-card" data-animate>
+            <h3>Product-Matching MCP</h3>
+            <p class="description">A FastMCP RAG server — hybrid pgvector + full-text fused with Reciprocal Rank Fusion over a Postgres + MongoDB store.</p>
+            <span class="language">MCP · RAG · pgvector</span>
+            <a class="link" href="case-studies/02-product-matching-mcp.html">View case study →</a>
+          </article>
+          <article class="project-card" data-animate>
+            <h3>Education Standards Platform</h3>
+            <p class="description">Production FastAPI + DDD on AWS; Claude tool-use extraction turns PDFs into a 6-level standards hierarchy.</p>
+            <span class="language">FastAPI · AWS · Claude tool-use</span>
+            <a class="link" href="case-studies/03-standards-platform.html">View case study →</a>
+          </article>
+          <article class="project-card" data-animate>
+            <h3>Multi-modal Proposal Builder</h3>
+            <p class="description">Generates text + HTML + AI images with a vision self-check, and exports to InDesign &amp; Figma.</p>
+            <span class="language">OpenAI Images · vision</span>
+            <a class="link" href="case-studies/04-proposal-builder.html">View case study →</a>
+          </article>
+          <article class="project-card" data-animate>
+            <h3>Customer Voice Agent "Q"</h3>
+            <p class="description">gpt-realtime voice + Claude brain — guides the site, answers product questions, books meetings.</p>
+            <span class="language">gpt-realtime · WebRTC · Claude</span>
+            <a class="link" href="case-studies/05-voice-agent-q.html">View case study →</a>
+          </article>
         </div>
 
         <div class="github-profile">
-          <a
-            href="#"
-            id="github-profile-link"
-            class="btn"
-            target="_blank"
-            rel="noopener"
-            aria-label="Open full GitHub profile in a new tab"
-          >
-            View Full GitHub Profile
+          <a href="case-studies/index.html" class="btn" aria-label="View all case studies">
+            View all case studies →
           </a>
         </div>
       </section>
@@ -211,7 +232,6 @@
 
     <!-- Keep these as normal scripts; github.js should use an async init function (no top-level await). -->
     <script src="js/config.js"></script>
-    <script src="js/github.js"></script>
     <script src="js/main.js"></script>
   </body>
 </html>

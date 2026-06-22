@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-modal Proposal Builder — Case Study · Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="topnav"><a href="../index.html#projects">← Back to site</a><a href="index.html">All case studies →</a></nav>
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Project 04 · Multi-modal</span>
+  <h1>Multi-modal Proposal Builder</h1>
+  <p class="sub">Generate tailored proposals — text, HTML, and AI-generated images — that the agent checks itself and exports to InDesign &amp; Figma.</p>
+  <div class="tags"><span>OpenAI Images</span><span>gpt-image-2</span><span>Vision self-eval</span><span>Playwright</span><span>InDesign / Figma</span></div>
+</div></header>
+
+<main class="wrap">
+  <section class="block"><h2>The problem</h2>
+    <p class="lead">Drafting tailored proposals — copy, layout, and product visuals — was the slowest, most error-prone step of the sales cycle.</p></section>
+
+  <section class="block"><h2>What I built</h2>
+    <ul class="pts">
+      <li>Built a <b>multi-modal generation agent</b> producing text + self-contained HTML (product cards, comparison tables, inline-SVG diagrams) and AI-generated images via the OpenAI Images API (gpt-image-2 → DALL·E-3 fallback).</li>
+      <li>Closed the loop with an <b>agent self-evaluation</b> step — Playwright renders each HTML fragment headlessly (760×960 @2×) and a vision model re-reads it before presenting, catching layout errors automatically.</li>
+      <li>Assembled each proposal <b>section by section</b> from reusable templates, so reps could swap in the right copy, products, and visuals per RFP.</li>
+      <li>Exported finished proposals to <b>InDesign (IDML) and Figma</b> — print-ready, editable handoffs the design team can refine in their own tools.</li>
+    </ul></section>
+
+  <section class="block"><h2>System architecture</h2>
+    <div class="ph"><div class="ico">🎨</div><div class="t">Architecture diagram — coming soon</div><div class="d">Generation agent · HTML + image gen · screenshot→vision self-check · IDML/Figma export. (Upload diagram here.)</div></div></section>
+
+  <section class="block"><h2>Demo</h2>
+    <div class="ph video"><div class="ico">▶</div><div class="t">Walkthrough video — coming soon</div><div class="d">Prompt → generated proposal → self-eval → InDesign/Figma export.</div></div></section>
+
+  <section class="block"><h2>Stack</h2>
+    <div class="tech"><span>OpenAI Images (gpt-image-2 / DALL·E-3)</span><span>Vision model</span><span>Playwright</span><span>HTML / inline-SVG</span><span>InDesign IDML</span><span>Figma</span></div></section>
+
+  <section class="block"><h2>Outcome</h2>
+    <p><span class="metric">Higher win rate</span> Through precise requirements coverage, partner-product inclusion, and faster drafting.</p></section>
+
+  <div class="backbar"><a href="03-standards-platform.html">← Prev: Standards Platform</a><a href="05-voice-agent-q.html">Next: Voice Agent "Q" →</a><a href="../index.html">Home</a></div>
+</main>
+<footer class="wrap">Jack Qu · AI Engineer · case study</footer>
+</body></html>

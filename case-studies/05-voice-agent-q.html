@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Voice Agent "Q" — Case Study · Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="topnav"><a href="../index.html#projects">← Back to site</a><a href="index.html">All case studies →</a></nav>
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Project 05 · Real-time Voice</span>
+  <h1>Customer Voice Agent "Q"</h1>
+  <p class="sub">A voice agent that guides prospects, answers product questions, and books meetings — voice via OpenAI, reasoning via Claude.</p>
+  <div class="tags"><span>OpenAI gpt-realtime</span><span>WebRTC</span><span>Claude brain</span><span>AWS SES</span><span>Multi-model</span></div>
+</div></header>
+
+<main class="wrap">
+  <section class="block"><h2>The problem</h2>
+    <p class="lead">Inbound website prospects had no guided way to explore products or book time with a rep, so promising top-of-funnel leads quietly leaked away.</p></section>
+
+  <section class="block"><h2>What I built</h2>
+    <ul class="pts">
+      <li>Built <b>"Q" on OpenAI gpt-realtime over WebRTC</b> (ephemeral 120-second session tokens) with <b>Claude as the reasoning brain</b> — a multi-model split where gpt-realtime owns sub-second speech and Claude owns reasoning.</li>
+      <li>A <code>navigate_app</code> tool <b>drives the site</b> (opportunities, products, map, dashboard) with source and product-fit filters, shared with a deterministic text parser.</li>
+      <li>A <code>consult_q</code> tool routes any product question to Claude over the product KB and returns <b>on-screen content</b> (cards, comparisons, lessons) that Q narrates step by step.</li>
+      <li>A <code>show_meeting_form</code> tool captures leads → a durable JSONL record + an <b>AWS SES email</b> to the sales team; a lip-synced mascot is driven by real-time audio amplitude.</li>
+    </ul></section>
+
+  <section class="block"><h2>System architecture</h2>
+    <div class="ph"><div class="ico">🎙️</div><div class="t">Architecture diagram — coming soon</div><div class="d">gpt-realtime (voice) ⇄ tools (navigate / consult_q / meeting) ⇄ Claude brain ⇄ AWS SES. (Upload diagram here.)</div></div></section>
+
+  <section class="block"><h2>Demo</h2>
+    <div class="ph video"><div class="ico">▶</div><div class="t">Walkthrough video — coming soon</div><div class="d">A live voice conversation: navigate → ask about a product → book a meeting.</div></div></section>
+
+  <section class="block"><h2>Stack</h2>
+    <div class="tech"><span>OpenAI gpt-realtime</span><span>WebRTC</span><span>gpt-4o-transcribe</span><span>Claude</span><span>AWS SES</span><span>React</span></div></section>
+
+  <section class="block"><h2>Outcome</h2>
+    <p><span class="metric">Guided demos &amp; qualified meetings</span> Converted passive site visits into guided product demos and booked sales meetings.</p></section>
+
+  <div class="backbar"><a href="04-proposal-builder.html">← Prev: Proposal Builder</a><a href="index.html">All case studies</a><a href="../index.html">Home</a></div>
+</main>
+<footer class="wrap">Jack Qu · AI Engineer · case study</footer>
+</body></html>

@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFP Opportunity Discovery — Case Study · Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="topnav"><a href="../index.html#projects">← Back to site</a><a href="index.html">All case studies →</a></nav>
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Project 01 · Agentic Web Search</span>
+  <h1>RFP Opportunity Discovery</h1>
+  <p class="sub">An autonomous agent that hunts K-12 procurement opportunities across 19,600+ districts — before the sales reps do.</p>
+  <div class="tags"><span>Claude Agent SDK</span><span>WebSearch</span><span>Structured output</span><span>Chrome-extension HITL</span><span>Postgres</span></div>
+</div></header>
+
+<main class="wrap">
+  <section class="block"><h2>The problem</h2>
+    <p class="lead">Pitsco's sales team hunted K-12 district RFPs by hand across dozens of state and regional procurement portals — a reactive, slow process that routinely missed bid deadlines.</p></section>
+
+  <section class="block"><h2>What I built</h2>
+    <ul class="pts">
+      <li>Engineered an <b>autonomous agent on the Claude Agent SDK</b> orchestrating WebSearch + custom portal readers across <b>19,600+ NCES districts</b>; Haiku and tuned prompts held each scan to 2–4 tool calls instead of dozens.</li>
+      <li>Enforced <b>structured JSON output</b> that tags each opportunity by Pitsco-product fit (green / yellow / gray), and contained cost with max-turn limits + idempotent Postgres report caching.</li>
+      <li>Built a <b>Chrome-extension human-in-the-loop fallback</b> for Cloudflare-blocked portals — harvests pages from the user's real browser, avoiding server-side IP blocks.</li>
+      <li>Enriched opportunities against NCES data and <b>geocoded districts onto a national map</b> for territory-level prioritization.</li>
+    </ul></section>
+
+  <section class="block"><h2>System architecture</h2>
+    <div class="ph"><div class="ico">🗺️</div><div class="t">Architecture diagram — coming soon</div><div class="d">Discovery agent · portal readers · HITL extension · Postgres cache. (Upload diagram here.)</div></div></section>
+
+  <section class="block"><h2>Demo</h2>
+    <div class="ph video"><div class="ico">▶</div><div class="t">Walkthrough video — coming soon</div><div class="d">Embed a 1–2 min screen recording of the discovery agent.</div></div></section>
+
+  <section class="block"><h2>Stack</h2>
+    <div class="tech"><span>Claude Agent SDK</span><span>WebSearch</span><span>Playwright</span><span>Chrome extension</span><span>Postgres</span><span>Haiku</span></div></section>
+
+  <section class="block"><h2>Outcome</h2>
+    <p><span class="metric">4× more qualified opportunities</span> Replaced a manual hunt with a continuous, automated discovery pipeline.</p></section>
+
+  <div class="backbar"><a href="index.html">← All case studies</a><a href="02-product-matching-mcp.html">Next: Product-Matching MCP →</a><a href="../index.html">Home</a></div>
+</main>
+<footer class="wrap">Jack Qu · AI Engineer · case study</footer>
+</body></html>

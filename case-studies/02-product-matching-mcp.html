@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product-Matching MCP — Case Study · Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="topnav"><a href="../index.html#projects">← Back to site</a><a href="index.html">All case studies →</a></nav>
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Project 02 · MCP + RAG</span>
+  <h1>Product-Matching MCP over a Dual Datastore</h1>
+  <p class="sub">A retrieval layer that matches 2,000+ products to each RFP's requirements — exposed to the agent through the Model Context Protocol.</p>
+  <div class="tags"><span>Python FastMCP</span><span>pgvector</span><span>Reciprocal Rank Fusion</span><span>MongoDB</span><span>Hybrid search</span></div>
+</div></header>
+
+<main class="wrap">
+  <section class="block"><h2>The problem</h2>
+    <p class="lead">Matching 2k+ Pitsco products to each RFP's requirements was manual and inconsistent — a bottleneck that slowed every proposal and let good-fit products slip through.</p></section>
+
+  <section class="block"><h2>What I built</h2>
+    <ul class="pts">
+      <li>Built a <b>Python FastMCP RAG server</b> with hybrid retrieval — a GIN tsvector (<code>websearch_to_tsquery</code>) for keyword search and an HNSW pgvector index over OpenAI embeddings for semantic search — fused via <b>Reciprocal Rank Fusion</b> (<code>1/(60+rank)</code>).</li>
+      <li>Designed a <b>dual datastore</b>: Postgres (catalog + embeddings + full-text) and MongoDB (product docs + AI-note history), with a regex-guarded read-only SQL path for ad-hoc queries.</li>
+      <li>Exposed the knowledge base through <b>six MCP tools</b> (semantic, keyword, hybrid, SQL, fetch, lesson-builder) — one interface every agent in the platform shares.</li>
+      <li>Added an <b>embedding-refresh path</b> that re-indexes a product the moment its details or AI notes change, keeping retrieval current without re-importing the catalog.</li>
+    </ul></section>
+
+  <section class="block"><h2>System architecture</h2>
+    <div class="ph"><div class="ico">🧩</div><div class="t">Architecture diagram — coming soon</div><div class="d">MCP server · hybrid retrieval (tsvector + pgvector) · RRF · Postgres + MongoDB. (Upload diagram here.)</div></div></section>
+
+  <section class="block"><h2>Demo</h2>
+    <div class="ph video"><div class="ico">▶</div><div class="t">Walkthrough video — coming soon</div><div class="d">Show a query → hybrid match → ranked products.</div></div></section>
+
+  <section class="block"><h2>Stack</h2>
+    <div class="tech"><span>Python</span><span>FastMCP</span><span>pgvector</span><span>OpenAI embeddings</span><span>Postgres full-text</span><span>MongoDB</span><span>RRF</span></div></section>
+
+  <section class="block"><h2>Outcome</h2>
+    <p><span class="metric">~50% faster product matching</span> Gave every agent workflow one grounded product knowledge source.</p></section>
+
+  <div class="backbar"><a href="01-rfp-discovery.html">← Prev: RFP Discovery</a><a href="03-standards-platform.html">Next: Standards Platform →</a><a href="../index.html">Home</a></div>
+</main>
+<footer class="wrap">Jack Qu · AI Engineer · case study</footer>
+</body></html>
