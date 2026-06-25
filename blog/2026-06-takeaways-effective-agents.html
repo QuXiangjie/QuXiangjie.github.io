@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What I took from Anthropic's "Building Effective Agents" — Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="nav"><a href="index.html">← Blog</a><a href="../index.html">Home</a></nav>
+<main class="wrap">
+<article class="post">
+  <div class="date">June 2026</div>
+  <h1>What I took from Anthropic's "Building Effective Agents"</h1>
+
+  <p>I finished reading Anthropic's <a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">Building Effective Agents</a> this week. Three ideas stuck with me — not because they were new, but because they all point in the same direction, and I think that direction is where the real leverage in this work lives.</p>
+
+  <h2>Mental models matter more, not less</h2>
+
+  <p>The reflex when AI starts writing your code is to lean into typing speed: more prompts, more agents, more output. I think it's the opposite. As the model does more of the writing, what actually separates engineers is the <em>sense</em> of what's happening under the code — being able to look at a snippet the model handed you and immediately know whether it's right, whether it'll scale, whether it's about to break in production.</p>
+
+  <p>So the takeaway from the piece that hit hardest for me wasn't really about agents. It was the throughline that understanding is the bottleneck now. The model can produce code at any speed; only you can decide whether that code is the right code. That requires a mental model you've actually built and tested, not one you've borrowed from a tutorial.</p>
+
+  <h2>Start simple. Don't reach for a framework first.</h2>
+
+  <blockquote>When building applications with LLMs, we recommend finding the simplest solution possible, and only increasing complexity when needed.</blockquote>
+
+  <p>Anthropic's advice is to start by using the LLM APIs directly — many of the patterns people reach for frameworks to provide are a few lines of code on their own. Frameworks are fine, but only if you understand the underlying code. Wrong assumptions about what's under the hood are one of the most common sources of error.</p>
+
+  <p>This lines up perfectly with the mental-model point. A framework that "just works" is worse than a handful of raw API calls you actually understand, because the day it stops working — and it will — you're stuck rummaging through someone else's abstractions in the dark. Reach for the abstraction <em>after</em> the pattern is real, not before.</p>
+
+  <h2>Write tool definitions like you're handing them to a new hire</h2>
+
+  <p>The prompt-engineering tip I'm carrying forward:</p>
+
+  <blockquote>Put yourself in the model's shoes. Is it obvious how to use this tool, based on the description and parameters, or would you need to think carefully about it? If so, then it's probably also true for the model.</blockquote>
+
+  <p>If a human reader would have to puzzle over what a tool does, the model will too. A good tool definition includes example usage, edge cases, input format requirements, and clear boundaries between this tool and the ones next to it. Treat the description like a docstring some new engineer is about to read before calling the function — don't make them guess.</p>
+
+  <h2>Why these three stick together</h2>
+
+  <p>All three point in the same direction. In agent engineering, your understanding <em>is</em> the product. The model is going to do the typing; what you bring is judgment. That means investing in clear mental models, choosing the simplest tool that fits, and writing prose that an outsider — model or human — can read without guessing.</p>
+
+  <p>The boring conclusion that keeps proving itself: this stuff isn't about prompting harder. It's about thinking more clearly so you can prompt less.</p>
+
+  <a class="backlink" href="index.html">← Back to all posts</a>
+</article>
+</main>
+<footer class="wrap">© 2026 Jack Qu</footer>
+</body></html>
