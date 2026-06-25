@@ -166,6 +166,57 @@ handle(<span class="str">"C"</span>)  <span class="cm"># then blocks 2s</span>
 
   <p>One more thing that bit me before it stopped biting me: <code>await</code> only works <em>inside</em> <code>async def</code>. Putting <code>await</code> in a regular <code>def</code> is a syntax error. And calling an <code>async def</code> without <code>await</code> doesn't run the body — it just returns a coroutine object that Python eventually warns you about: <em>"coroutine was never awaited."</em> That warning is the single most common async bug.</p>
 
+  <h2>Five small puzzles to check the model</h2>
+
+  <p>I had a friend hand me these. They're tiny — a few lines each — and they're the best test I've found of whether the mental model is actually in your fingers. Setup:</p>
+
+  <pre class="demo-code async"><span class="kw">async def</span> <span class="fn">op1</span>(): <span class="kw">await</span> asyncio.sleep(<span class="str">1</span>); <span class="kw">return</span> <span class="str">1</span>   <span class="cm"># 1 second</span>
+<span class="kw">async def</span> <span class="fn">op2</span>(): <span class="kw">await</span> asyncio.sleep(<span class="str">2</span>); <span class="kw">return</span> <span class="str">2</span>   <span class="cm"># 2 seconds</span>
+</pre>
+
+  <h3 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:18px;margin-top:24px;letter-spacing:-.005em;">① register one, await the other</h3>
+  <pre class="demo-code async"><span class="kw">async def</span> <span class="fn">main</span>():
+    t = asyncio.create_task(op1())   <span class="cm"># op1 scheduled, not yet running</span>
+    <span class="kw">await</span> op2()                       <span class="cm"># main yields here — both now run</span>
+    <span class="kw">await</span> t
+</pre>
+  <p><strong>~2 seconds.</strong> <code>create_task</code> registers op1 with the loop but doesn't actually start it — the loop has to wait for the current coroutine to yield. That yield happens at <code>await op2()</code>. From that instant both op1 and op2 are running concurrently. op1 finishes at t=1, op2 at t=2. The trailing <code>await t</code> is instant because op1 already returned.</p>
+
+  <h3 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:18px;margin-top:24px;letter-spacing:-.005em;">② register both, then await</h3>
+  <pre class="demo-code async"><span class="kw">async def</span> <span class="fn">main</span>():
+    t1 = asyncio.create_task(op1())   <span class="cm"># 1s</span>
+    t2 = asyncio.create_task(op2())   <span class="cm"># 2s</span>
+    <span class="kw">await</span> t1
+    <span class="kw">await</span> t2
+</pre>
+  <p><strong>~2 seconds.</strong> Both tasks are scheduled before any await. <code>await t1</code> yields; both run concurrently from t=0. t1 finishes at 1, then <code>await t2</code> waits until 2. <code>await</code>ing tasks in sequence is fine — they're already running.</p>
+
+  <h3 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:18px;margin-top:24px;letter-spacing:-.005em;">③ await before create_task</h3>
+  <pre class="demo-code async"><span class="kw">async def</span> <span class="fn">main</span>():
+    <span class="kw">await</span> op1()                       <span class="cm"># blocks main until op1 done</span>
+    t = asyncio.create_task(op2())    <span class="cm"># only registered AFTER op1 finishes</span>
+    <span class="kw">await</span> t
+</pre>
+  <p><strong>~3 seconds.</strong> <code>await op1()</code> at the top means op2 hasn't even been scheduled yet. main is stuck on op1 for 1s, <em>then</em> op2 is created and awaited for another 2s. 1 + 2 = 3. There's no concurrency because the second task didn't exist while the first was running.</p>
+
+  <h3 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:18px;margin-top:24px;letter-spacing:-.005em;">④ the trap — registered, but the loop never gets to run</h3>
+  <pre class="demo-code sync"><span class="kw">import</span> time
+<span class="kw">async def</span> <span class="fn">main</span>():
+    t = asyncio.create_task(op2())    <span class="cm"># scheduled, not yet started</span>
+    time.sleep(<span class="str">2</span>)                     <span class="cm"># 🔴 BLOCKING — loop is frozen</span>
+    <span class="kw">await</span> t
+</pre>
+  <p><strong>~4 seconds.</strong> The canonical "async ruined by one blocking call" bug. <code>create_task</code> registers op2, but op2 needs the event loop to actually run, and <code>time.sleep(2)</code> freezes the loop for two full seconds. op2 sits in the queue, untouched. After the sleep returns, main hits <code>await t</code>, finally yields, and only NOW does op2 start its own 2-second <code>asyncio.sleep</code>. Total: 2 + 2 = 4. One blocking call inside one <code>async def</code> erased all the concurrency.</p>
+
+  <h3 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:18px;margin-top:24px;letter-spacing:-.005em;">⑤ back to the GIL — threads vs processes</h3>
+  <p>An 8-core machine. A pure-Python CPU computation that takes 4 seconds single-threaded. Split it.</p>
+  <ul style="margin: 0 0 20px 22px;">
+    <li><strong>(a) 4 threads → ~4 seconds.</strong> The GIL only lets one thread execute Python bytecode at a time. The four threads time-slice on a single core. Total work is unchanged (often slightly worse from lock contention).</li>
+    <li><strong>(b) 4 processes → ~1 second.</strong> Each process has its own Python interpreter and its own GIL, so the four run genuinely in parallel on four cores. 4 seconds of work ÷ 4 cores ≈ 1 second.</li>
+  </ul>
+
+  <p>The reason this matters: <code>asyncio</code>, threads, and multiprocessing are three different tools for three different problems. <code>asyncio</code> overlaps I/O waits on a single thread. Threads help when you're stuck with a blocking I/O library. Multiprocessing is the only one of the three that gives you real CPU parallelism in Python. Reach for the wrong one and you get one of the answers above where you expected a different one.</p>
+
   <h2>The takeaway</h2>
 
   <p>I think the reason async confused me for so long is that everyone explains it with the keywords first (<code>async</code>, <code>await</code>, <code>coroutine</code>, <code>event loop</code>) and the behavior second. It's much clearer the other way around:</p>
