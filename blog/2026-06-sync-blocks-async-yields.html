@@ -1,0 +1,238 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sync waits block the thread. Async waits yield it. — Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Scoped styles for the inline demo. Kept light to fit the blog's reading style. */
+  .demo-card {
+    background: #0f1419;
+    color: #e6e6e6;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 26px 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .demo-card h3 {
+    font-size: 14px;
+    color: #7dd3fc;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 10px;
+    font-weight: 700;
+  }
+  .demo-card p { color: #cbd5e1; margin: 0 0 14px; font-size: 13.5px; }
+  .demo-controls {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .demo-controls button {
+    background: #2563eb; color: white; border: 0;
+    padding: 7px 14px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+  }
+  .demo-controls button:hover { background: #1d4ed8; }
+  .demo-controls button.ghost { background: #334155; }
+  .demo-controls .pill {
+    font-family: "SF Mono", Monaco, monospace; font-size: 12px;
+    padding: 5px 10px; border-radius: 4px;
+  }
+  .demo-controls .pill.sync  { background: #2d1414; color: #fca5a5; }
+  .demo-controls .pill.async { background: #0f2419; color: #86efac; }
+  .demo-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .demo-code {
+    background: #060a0f; border-radius: 6px; padding: 12px;
+    font-family: "SF Mono", Monaco, monospace;
+    font-size: 11.5px; line-height: 1.8; white-space: pre; overflow-x: auto;
+    color: #9ca3af;
+  }
+  .demo-code.sync  { border-top: 3px solid #ef4444; }
+  .demo-code.async { border-top: 3px solid #22c55e; }
+  .demo-code .kw  { color: #c084fc; }
+  .demo-code .fn  { color: #7dd3fc; }
+  .demo-code .str { color: #fbbf24; }
+  .demo-code .cm  { color: #4b5563; font-style: italic; }
+  .demo-tl-title {
+    margin-top: 18px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #94a3b8;
+  }
+  .demo-lane {
+    display: grid; grid-template-columns: 50px 1fr;
+    gap: 10px; align-items: center; margin: 5px 0;
+  }
+  .demo-lane-label { font-size: 11px; color: #cbd5e1; font-family: "SF Mono", Monaco, monospace; }
+  .demo-track {
+    position: relative; height: 22px; background: #060a0f;
+    border-radius: 4px; overflow: hidden;
+  }
+  .demo-bar {
+    position: absolute; top: 3px; height: 16px; border-radius: 3px;
+    font-size: 10px; color: white; padding: 0 6px;
+    display: flex; align-items: center; font-weight: 600;
+    transition: all 0.05s linear;
+  }
+  .demo-bar.wait { background: #eab308; }
+  .demo-bar.blk  { background: #ef4444; }
+  .demo-bar.done { background: #6366f1; opacity: 0.7; }
+  @media (max-width: 640px) {
+    .demo-cols { grid-template-columns: 1fr; }
+  }
+</style>
+</head><body>
+<nav class="nav"><a href="index.html">← Blog</a><a href="../index.html">Home</a></nav>
+<main class="wrap">
+<article class="post">
+  <div class="date">June 2026</div>
+  <h1>Sync waits block the thread. Async waits yield it.</h1>
+
+  <p>I spent an evening this week getting <code>async</code> into my body, not just my head. The whole thing collapses into one sentence:</p>
+
+  <blockquote>Sync waits block the thread. Async waits yield the thread.</blockquote>
+
+  <p>Everything else — coroutines, the event loop, <code>asyncio.gather</code>, the "I forgot to await" bug — falls out of that.</p>
+
+  <h2>Two ways to "wait two seconds"</h2>
+
+  <p>Both of these functions sleep for two seconds. They look almost identical. They behave nothing alike.</p>
+
+  <div class="demo-cols">
+    <pre class="demo-code sync"><span class="cm"># SYNC — uses blocking time.sleep</span>
+<span class="kw">def</span> <span class="fn">handle</span>(name):
+    print(<span class="str">f"{name} start"</span>)
+    time.sleep(<span class="str">2</span>)        <span class="cm"># 🔴 freezes the thread</span>
+    print(<span class="str">f"{name} done"</span>)
+
+<span class="cm"># server processes one at a time</span>
+handle(<span class="str">"A"</span>)  <span class="cm"># blocks 2s</span>
+handle(<span class="str">"B"</span>)  <span class="cm"># then blocks 2s</span>
+handle(<span class="str">"C"</span>)  <span class="cm"># then blocks 2s</span>
+<span class="cm"># total: 6s</span>
+</pre>
+    <pre class="demo-code async"><span class="cm"># ASYNC — uses await asyncio.sleep</span>
+<span class="kw">async def</span> <span class="fn">handle</span>(name):
+    print(<span class="str">f"{name} start"</span>)
+    <span class="kw">await</span> asyncio.sleep(<span class="str">2</span>)  <span class="cm"># 🟢 yields the loop</span>
+    print(<span class="str">f"{name} done"</span>)
+
+<span class="cm"># all three run concurrently</span>
+<span class="kw">await</span> asyncio.gather(
+    handle(<span class="str">"A"</span>), handle(<span class="str">"B"</span>), handle(<span class="str">"C"</span>),
+)
+<span class="cm"># total: ~2s</span>
+</pre>
+  </div>
+
+  <p>One word changed (<code>time.sleep</code> → <code>await asyncio.sleep</code>) and the program runs three times faster.</p>
+
+  <h2>Watch it run</h2>
+
+  <p>Both timelines below tick against the <em>same six-second wall clock</em> so you can see one finish while the other is still on its first task. Hit Run.</p>
+
+  <div class="demo-card">
+    <div class="demo-controls">
+      <button onclick="runDemo()">▶ Run BOTH side-by-side</button>
+      <button class="ghost" onclick="resetDemo()">Reset</button>
+      <span class="pill sync"  id="clockSync">sync t = 0.0s</span>
+      <span class="pill async" id="clockAsync">async t = 0.0s</span>
+    </div>
+
+    <h3 style="color:#fca5a5">Sync — each task blocks the thread</h3>
+    <p>A holds the thread for 2s. B can't start until A finishes. C can't start until B finishes.</p>
+    <div class="demo-lane"><div class="demo-lane-label">A</div><div class="demo-track" id="syncA"></div></div>
+    <div class="demo-lane"><div class="demo-lane-label">B</div><div class="demo-track" id="syncB"></div></div>
+    <div class="demo-lane"><div class="demo-lane-label">C</div><div class="demo-track" id="syncC"></div></div>
+
+    <div class="demo-tl-title" style="color:#86efac">Async — every <code>await</code> yields the loop, so the waits overlap</div>
+    <div class="demo-lane"><div class="demo-lane-label">A</div><div class="demo-track" id="asyncA"></div></div>
+    <div class="demo-lane"><div class="demo-lane-label">B</div><div class="demo-track" id="asyncB"></div></div>
+    <div class="demo-lane"><div class="demo-lane-label">C</div><div class="demo-track" id="asyncC"></div></div>
+  </div>
+
+  <h2>The mental model that finally made it click</h2>
+
+  <p>I kept tripping over the same two things until I separated them clearly:</p>
+
+  <p><strong><code>async def</code></strong> is a <em>declaration</em>. It marks a function as a coroutine — a function that has <em>permission</em> to pause. It does no waiting itself.</p>
+
+  <p><strong><code>await</code></strong> is the <em>action</em>. It's the actual pause. It suspends the current coroutine, hands control back to the event loop, and only resumes when the result is ready. The event loop is free to run anything else in the meantime.</p>
+
+  <p>So when three async requests come in: each one runs a tiny bit of code, hits <code>await</code>, hands the loop back. The loop picks up the next one. Within milliseconds all three are paused, all three two-second waits are counting down in parallel, and the loop is sitting idle until any of them wakes up. That's the whole trick — there's nothing magical, just cooperative scheduling at <code>await</code> points.</p>
+
+  <h2>Where async actually helps</h2>
+
+  <p>Async wins when functions spend most of their time <em>waiting</em> — network calls, database queries, disk I/O. Those waits are exactly where <code>await</code> yields and lets the loop do something useful.</p>
+
+  <p>Async does <em>not</em> help when functions are doing real CPU work (math, image processing, parsing a million-row CSV). There's no <code>await</code> in the hot path, so nothing yields, and you've just written a slower sync program. For CPU-bound work you need multiprocessing, not asyncio.</p>
+
+  <p>One more thing that bit me before it stopped biting me: <code>await</code> only works <em>inside</em> <code>async def</code>. Putting <code>await</code> in a regular <code>def</code> is a syntax error. And calling an <code>async def</code> without <code>await</code> doesn't run the body — it just returns a coroutine object that Python eventually warns you about: <em>"coroutine was never awaited."</em> That warning is the single most common async bug.</p>
+
+  <h2>The takeaway</h2>
+
+  <p>I think the reason async confused me for so long is that everyone explains it with the keywords first (<code>async</code>, <code>await</code>, <code>coroutine</code>, <code>event loop</code>) and the behavior second. It's much clearer the other way around:</p>
+
+  <blockquote>Two functions that both "wait two seconds." One freezes the thread. The other lets the thread keep working. The keywords are just the API for choosing which one you want.</blockquote>
+
+  <p>Onto building something with it.</p>
+
+  <a class="backlink" href="index.html">← Back to all posts</a>
+</article>
+</main>
+<footer class="wrap">© 2026 Jack Qu</footer>
+
+<script>
+let demoTimers = [];
+let demoClock = null;
+function laterD(fn, ms) { demoTimers.push(setTimeout(fn, ms)); }
+function clearTrack(id) { document.getElementById(id).innerHTML = ''; }
+function addBar(id, leftPct, widthPct, cls, label) {
+  const t = document.getElementById(id);
+  const b = document.createElement('div');
+  b.className = 'demo-bar ' + cls;
+  b.style.left  = leftPct + '%';
+  b.style.width = widthPct + '%';
+  b.textContent = label || '';
+  t.appendChild(b);
+}
+function resetDemo() {
+  demoTimers.forEach(t => clearTimeout(t)); demoTimers = [];
+  if (demoClock) { clearInterval(demoClock); demoClock = null; }
+  ['syncA','syncB','syncC','asyncA','asyncB','asyncC'].forEach(clearTrack);
+  document.getElementById('clockSync').textContent  = 'sync t = 0.0s';
+  document.getElementById('clockAsync').textContent = 'async t = 0.0s';
+}
+function runDemo() {
+  resetDemo();
+  const SHARED_MS = 6000;
+  const pct = ms => (ms / SHARED_MS * 100);
+
+  // SYNC: A blocks 0-2, B blocks 2-4, C blocks 4-6
+  laterD(() => addBar('syncA', pct(0),    pct(2000), 'blk',  'BLOCK time.sleep(2)'), 0);
+  laterD(() => addBar('syncA', pct(1980), pct(60),   'done', '✓'),                    2000);
+  laterD(() => addBar('syncB', pct(2000), pct(2000), 'blk',  'BLOCK time.sleep(2)'), 2000);
+  laterD(() => addBar('syncB', pct(3980), pct(60),   'done', '✓'),                    4000);
+  laterD(() => addBar('syncC', pct(4000), pct(2000), 'blk',  'BLOCK time.sleep(2)'), 4000);
+  laterD(() => addBar('syncC', pct(5980), pct(60),   'done', '✓'),                    6000);
+
+  // ASYNC: A, B, C all await in parallel, done at 2s
+  ['asyncA','asyncB','asyncC'].forEach((id, i) => {
+    laterD(() => addBar(id, pct(i*30), pct(2000), 'wait', 'await asyncio.sleep(2)'), 0);
+    laterD(() => addBar(id, pct(2000), pct(80),   'done', '✓'),                       2000);
+  });
+
+  const start = performance.now();
+  demoClock = setInterval(() => {
+    const elapsed = (performance.now() - start) / 1000;
+    document.getElementById('clockSync').textContent =
+      'sync t = ' + Math.min(elapsed, 6).toFixed(1) + 's';
+    const a = Math.min(elapsed, 2);
+    document.getElementById('clockAsync').textContent =
+      'async t = ' + a.toFixed(1) + 's' + (elapsed >= 2 ? ' ✓ DONE' : '');
+    if (elapsed >= 6) {
+      clearInterval(demoClock); demoClock = null;
+      document.getElementById('clockSync').textContent =
+        'sync t = 6.0s ✓ DONE';
+    }
+  }, 50);
+}
+</script>
+</body></html>
