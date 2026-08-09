@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How far can the FDE go? — Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="nav"><a href="index.html">← Blog</a><a href="../index.html">Home</a></nav>
+<main class="wrap">
+<article class="post">
+  <div class="date">August 2026</div>
+  <h1>How far can the FDE go?</h1>
+
+  <p>My view: the function is durable, the title probably isn't, and the content of the work is going to churn faster than most people in the role expect.</p>
+
+  <h2>The compression argument is real — it's just aimed at the wrong part of the job</h2>
+
+  <p>If Forward Deployed Engineer means "writes the custom integration code that the product doesn't ship yet," then yes, that's the most compressible layer in the whole job, and agents are eating it right now. Palantir's FDEs spent a decade doing work that Foundry eventually productized. Every platform does this. The pipeline you hand-build this year becomes a config screen next year.</p>
+
+  <p>But that was never where the difficulty was. The hard part of what I did with the RFP pipeline wasn't the code. It was knowing which person actually routes prioritization, which one is the real dependency for the source data, and which one has to verify product matching before anybody trusts the output. None of that is written down anywhere. It's not in a wiki, a schema, or a Confluence page, and a model pointed at the company's data lake does not recover it — because it doesn't exist in the data. It exists in rooms. Somebody has to sit in those rooms.</p>
+
+  <h2>The shape shifts: less "engineer," more "forward deployed"</h2>
+
+  <p>What replaces the code-writing is roughly three things: deciding what's worth building, specifying it precisely enough that an agent can execute it, and designing the verification that tells you it's actually right.</p>
+
+  <p>That last one is the most undervalued thing in the job right now. Whoever can answer <em>"how do we know the extraction was correct?"</em> with something better than vibes holds more leverage than whoever wrote the extractor.</p>
+
+  <h2>The counterintuitive part: headcount probably goes up</h2>
+
+  <p>Better agents make each deployment cheaper, which makes marginal deployments economical that weren't before. Jevons applies to integration work. I'd expect more of these roles over the next five years, not fewer — the same way automation created SRE rather than eliminating ops.</p>
+
+  <h2>What actually protects the role is capability churn</h2>
+
+  <p>If model capabilities froze today, three years of standardization would compress this whole thing into a template and a certification course. They're not freezing. Every six months the question <em>"what is now possible in your specific business"</em> reopens, and that question gets answered locally or not at all.</p>
+
+  <blockquote>Your job security is the derivative, not the level.</blockquote>
+
+  <h2>The uncomfortable part</h2>
+
+  <p>Here's what I think is the real risk, and it isn't obsolescence. The durable half of FDE value is often the least portable half.</p>
+
+  <p>"Can configure Bedrock knowledge bases and resolve OpenSearch permission gaps" is portable and decaying. "Understands how this company's RFP process actually works, well enough to judge what's safely automatable" is compounding and non-portable. Optimize purely for the durable thing and you become very valuable at exactly one company.</p>
+
+  <p>The escape is generalizing the method. The reusable asset isn't the pipeline I built — it's my model of how to find the seam between business language and system data in <em>any</em> org. Writing that down as a transferable playbook is worth more to a career than the next integration.</p>
+
+  <h2>What would change my mind</h2>
+
+  <p>If within a few years you could point an agent at a company's Slack, Drive, and ERP and have it reconstruct the actual operating process — including the informal parts — then a large share of this compresses fast. I don't think that's absurd.</p>
+
+  <p>But even in that world, the last mile is accountability. When the agent misprices a bid, an org chart needs a name next to the failure, and models don't take responsibility. That's not a technical limitation that gets solved. It's what organizations are for.</p>
+
+  <p>Bet on the title dying, not the work.</p>
+
+  <a class="backlink" href="index.html">← Back to all posts</a>
+</article>
+</main>
+<footer class="wrap">© 2026 Jack Qu</footer>
+</body></html>
