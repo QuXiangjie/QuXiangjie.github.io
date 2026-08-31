@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>协程与挂起点</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    --paper: #f5f7f6;
+    --card: #ffffff;
+    --ink: #1d2a2a;
+    --ink-soft: #5a6b69;
+    --line: #dde5e3;
+    --run: #0c7f74;        /* 持有线程,运行中 */
+    --run-bg: #d9efec;
+    --frozen: #b97e14;     /* 冻结等待 */
+    --frozen-bg: #f6ead2;
+    --loop: #5b5bd6;       /* 事件循环 / server */
+    --loop-bg: #e4e4f8;
+    --idle: #cbd5d3;
+    --code-bg: #10201d;
+    --code-ink: #d7e6e2;
+    --code-hl: #1e3a34;
+    --ok: #0c7f74;
+    --bad: #b3423a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101817;
+      --card: #182321;
+      --ink: #e6eeec;
+      --ink-soft: #96a8a5;
+      --line: #26332f;
+      --run: #2fbfae;
+      --run-bg: #123a35;
+      --frozen: #e0a33c;
+      --frozen-bg: #3a2e12;
+      --loop: #8f8ff0;
+      --loop-bg: #24244a;
+      --idle: #35423f;
+      --code-bg: #0b1513;
+      --code-ink: #cfe0dc;
+      --code-hl: #1d3831;
+      --ok: #2fbfae;
+      --bad: #e07168;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101817;
+    --card: #182321;
+    --ink: #e6eeec;
+    --ink-soft: #96a8a5;
+    --line: #26332f;
+    --run: #2fbfae;
+    --run-bg: #123a35;
+    --frozen: #e0a33c;
+    --frozen-bg: #3a2e12;
+    --loop: #8f8ff0;
+    --loop-bg: #24244a;
+    --idle: #35423f;
+    --code-bg: #0b1513;
+    --code-ink: #cfe0dc;
+    --code-hl: #1d3831;
+    --ok: #2fbfae;
+    --bad: #e07168;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  code, pre, .mono { font-family: "JetBrains Mono", "Menlo", monospace; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* ---------- header ---------- */
+  header h1 { font-size: 30px; font-weight: 700; letter-spacing: .02em; }
+  header .sub { color: var(--ink-soft); margin-top: 4px; }
+  .purpose {
+    margin-top: 20px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); padding: 18px 22px;
+    display: grid; gap: 10px;
+  }
+  .purpose .tag {
+    display: inline-block; font-size: 12px; letter-spacing: .12em;
+    color: var(--loop); font-weight: 700; margin-right: 8px;
+  }
+  .purpose ol { padding-left: 22px; }
+  .purpose li { margin: 2px 0; }
+
+  /* ---------- tabs ---------- */
+  nav.tabs {
+    display: flex; gap: 6px; margin: 28px 0 0; flex-wrap: wrap;
+    border-bottom: 2px solid var(--line); padding-bottom: 0;
+  }
+  nav.tabs button {
+    border: none; background: none; color: var(--ink-soft);
+    font: inherit; font-weight: 500; padding: 10px 14px; cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.active { color: var(--run); border-bottom-color: var(--run); font-weight: 700; }
+  nav.tabs button:focus-visible { outline: 2px solid var(--loop); outline-offset: 2px; border-radius: 4px; }
+
+  section.view { display: none; padding-top: 26px; }
+  section.view.active { display: block; }
+  section.view > .lede { max-width: 68ch; color: var(--ink-soft); margin-bottom: 18px; }
+  section.view > .lede strong { color: var(--ink); }
+  h2 { font-size: 21px; margin-bottom: 6px; }
+  h3 { font-size: 16px; margin: 18px 0 8px; }
+
+  /* ---------- code panel ---------- */
+  .split { display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 54%); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+
+  .codebox {
+    background: var(--code-bg); color: var(--code-ink);
+    border-radius: 10px; padding: 14px 0; overflow-x: auto;
+    font-size: 13px; line-height: 1.75;
+  }
+  .codebox .cl { display: flex; white-space: pre; padding: 0 16px; }
+  .codebox .cl .no {
+    width: 2.2em; flex: none; text-align: right; margin-right: 14px;
+    color: #56736c; user-select: none;
+  }
+  .codebox .cl.hl { background: var(--code-hl); box-shadow: inset 3px 0 0 var(--run); }
+  .codebox .cl.hl-frozen { background: var(--code-hl); box-shadow: inset 3px 0 0 var(--frozen); }
+  .cm { color: #6d8f86; }
+  .kw { color: #7fd8c8; }
+  .st { color: #e8c88a; }
+
+  /* ---------- stage ---------- */
+  .stage { display: grid; gap: 14px; }
+  .threadchip {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px;
+  }
+  .threadchip .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--run); flex: none;
+    box-shadow: 0 0 0 4px var(--run-bg);
+  }
+  .threadchip b { color: var(--run); }
+  .threadchip .lbl { font-size: 13px; color: var(--ink-soft); }
+
+  .lanes { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .lane { display: grid; grid-template-columns: 108px 1fr; gap: 10px; align-items: center; margin: 7px 0; }
+  .lane .name { font-size: 13px; color: var(--ink-soft); text-align: right; line-height: 1.3; }
+  .lane .track { display: flex; gap: 3px; }
+  .lane .seg {
+    flex: 1; height: 20px; border-radius: 4px; background: var(--idle);
+    opacity: .25; transition: opacity .15s;
+  }
+  .lane .seg.on { opacity: 1; }
+  .seg.s-run { background: var(--run); }
+  .seg.s-frozen { background: var(--frozen); }
+  .seg.s-work { background: var(--loop); }
+  .seg.s-idle { background: var(--idle); }
+  .seg.cur.on { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  .narr {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--run);
+    border-radius: 10px; padding: 14px 18px; min-height: 92px;
+  }
+  .narr .stepno { font-size: 12px; letter-spacing: .1em; color: var(--ink-soft); font-weight: 700; }
+  .narr.frozen-narr { border-left-color: var(--frozen); }
+  .narr p { margin-top: 4px; }
+  .narr code { background: var(--loop-bg); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  .term {
+    background: var(--code-bg); color: var(--code-ink); border-radius: 10px;
+    padding: 12px 16px; font-family: "JetBrains Mono", monospace; font-size: 12.5px;
+    min-height: 84px; line-height: 1.9;
+  }
+  .term .prompt { color: #56736c; }
+  .term div { white-space: pre-wrap; }
+
+  .ctrls { display: flex; gap: 10px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-weight: 700; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    padding: 8px 18px;
+  }
+  .btn.primary { background: var(--run); border-color: var(--run); color: #fff; }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:focus-visible { outline: 2px solid var(--loop); outline-offset: 2px; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .stepmeter { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  /* ---------- gather playground ---------- */
+  .compare { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-top: 20px; }
+  .compare .row { display: grid; grid-template-columns: 130px 1fr 90px; align-items: center; gap: 12px; margin: 10px 0; }
+  .compare .barwrap { background: var(--paper); border-radius: 6px; height: 26px; position: relative; overflow: hidden; }
+  .compare .bar { position: absolute; top: 0; bottom: 0; border-radius: 6px; transition: width .2s, left .2s; }
+  .compare .b1 { background: var(--run); }
+  .compare .b2 { background: var(--loop); }
+  .compare .total { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+  .compare label { font-size: 13px; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+  .compare input[type=range] { accent-color: var(--run); flex: 1; }
+  .verdict { margin-top: 10px; font-size: 14px; }
+  .verdict b { color: var(--run); }
+
+  /* ---------- derivation ---------- */
+  .deriv { display: grid; grid-template-columns: minmax(0,40%) minmax(0,60%); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .deriv { grid-template-columns: 1fr; } }
+  .constraint {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  }
+  .constraint input { margin-top: 5px; accent-color: var(--run); }
+  .constraint .cid { font-weight: 700; color: var(--loop); font-size: 13px; }
+  .constraint.off { opacity: .45; }
+  .choice {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px; transition: opacity .2s;
+  }
+  .choice h4 { font-size: 15px; }
+  .choice .why { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+  .choice .tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .choice .tag {
+    font-size: 12px; font-weight: 700; color: var(--loop);
+    background: var(--loop-bg); border-radius: 5px; padding: 1px 8px;
+  }
+  .choice .tag.dim { opacity: .3; text-decoration: line-through; }
+  .choice.lost { opacity: .35; }
+  .choice .lostnote { display: none; color: var(--bad); font-size: 13px; font-weight: 700; margin-top: 6px; }
+  .choice.lost .lostnote { display: block; }
+
+  /* ---------- exercise ---------- */
+  .quiz { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 22px; margin-bottom: 22px; }
+  .quiz .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .quiz .opt {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px;
+    border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+  }
+  .quiz .opt input { margin-top: 5px; accent-color: var(--run); }
+  .quiz .opt.correct { border-color: var(--ok); background: var(--run-bg); }
+  .quiz .opt.wrong { border-color: var(--bad); }
+  .quiz .reveal { display: none; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
+  .quiz.done .reveal { display: block; }
+  .quiz .reveal .r-ok { color: var(--ok); font-weight: 700; }
+  .quiz .reveal .r-bad { color: var(--bad); font-weight: 700; }
+
+  .gotcha {
+    border: 1px solid var(--frozen); background: var(--frozen-bg);
+    border-radius: 10px; padding: 14px 18px; margin-top: 22px;
+  }
+  .gotcha b { color: var(--frozen); }
+
+  /* ---------- feedback ---------- */
+  .feedback { margin-top: 40px; border-top: 2px solid var(--line); padding-top: 24px; }
+  .feedback .marks { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 16px; }
+  .feedback .marks label {
+    display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer;
+    background: var(--card);
+  }
+  .feedback textarea {
+    width: 100%; min-height: 90px; font: inherit; font-size: 14px;
+    background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 12px; resize: vertical;
+  }
+  .copied { color: var(--ok); font-size: 13px; font-weight: 700; margin-left: 8px; opacity: 0; transition: opacity .2s; }
+  .copied.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>协程与挂起点</h1>
+  <div class="sub">用你自己的 <code class="mono">Initial/client.py</code> 逐帧看懂:线程在 <code class="mono">await</code> 处如何被交还与调度</div>
+
+  <div class="purpose">
+    <div><span class="tag">目的</span>能自信地读写 async 的 MCP 客户端/服务端代码——下一步要给 server 加真实工具、接入 Claude Code,都绕不开这套模型。</div>
+    <div><span class="tag">学完标准</span>看完后你应该能回答:
+      <ol>
+        <li>指着 client.py 的每个 <code class="mono">await</code>,说出"此刻谁被冻结、线程去了哪、谁负责唤醒"。→ 视图 ①</li>
+        <li>预测 <code class="mono">gather</code> / <code class="mono">create_task</code> 版本的执行顺序,并解释为什么更快。→ 视图 ② ④</li>
+        <li>说出为什么协程"必须"长这样,以及 <code class="mono">time.sleep</code> 为什么会毒死整个程序。→ 视图 ③</li>
+      </ol>
+    </div>
+    <div><span class="tag">深度预算</span>4 个视图。每看完一个,问自己:上面哪个问题我现在能答了?能答满 3 个就可以关掉这个页面了。</div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="active" data-v="v1">① 单协程:逐帧执行</button>
+  <button data-v="v2">② 两个协程:gather 并发</button>
+  <button data-v="v3">③ 为什么必须这样设计</button>
+  <button data-v="v4">④ 预测练习</button>
+</nav>
+
+<!-- ═══════════════════ VIEW 1 ═══════════════════ -->
+<section class="view active" id="v1">
+  <h2>你的 client.py,一帧一帧放</h2>
+  <p class="lede">左边是真实代码,右边是舞台。舞台上有三个角色:<strong>main 协程</strong>(你写的)、<strong>读协程 stdout_reader</strong>(Client 创建的后台任务,负责盯 server 的 stdout)、<strong>server 子进程</strong>(你的 server.py)。注意:"内部"只是说它<strong>藏在 mcp 库的实现里、你看不见</strong>——在事件循环眼里,它和 main 是<strong>平级的两个独立任务</strong>,谁也不是谁的一部分。任何时刻,<strong>线程只在一个协程手里</strong>——点「下一步」,看它怎么流转。</p>
+
+  <div class="split">
+    <div>
+      <div class="codebox" id="code1"></div>
+      <div class="term" id="term1" style="margin-top:14px"><div class="prompt"># 终端输出</div></div>
+    </div>
+    <div class="stage">
+      <div class="threadchip"><span class="dot" id="dot1"></span><span>🧵 线程此刻在:<b id="holder1">—</b></span><span class="lbl" id="holderNote1"></span></div>
+      <div class="lanes" id="lanes1"></div>
+      <div class="legend">
+        <span><i style="background:var(--run)"></i>持有线程,运行中</span>
+        <span><i style="background:var(--frozen)"></i>冻结,书签留在 await 行</span>
+        <span><i style="background:var(--loop)"></i>server 处理中</span>
+        <span><i style="background:var(--idle)"></i>空闲 / 不存在</span>
+      </div>
+      <div class="narr" id="narr1"><span class="stepno">按「下一步」开始</span><p>从 <code>asyncio.run(main())</code> 那一行开始播放。</p></div>
+      <div class="ctrls">
+        <button class="btn primary" id="next1">下一步 →</button>
+        <button class="btn" id="prev1">← 上一步</button>
+        <button class="btn" id="reset1">重置</button>
+        <span class="stepmeter" id="meter1"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="gotcha">⚠️ <b>看完这个视图记住一件事:</b>main 冻结时,线程去的是「其他就绪的任务」(这里是读协程 stdout_reader),<b>永远不会</b>去执行 main 自己的下一行——下一行是 main 身体的一部分,main 整个被冻着,书签夹在 await 那一行。</div>
+
+  <h3>串联 vs 并联:协程挂接的两种方式</h3>
+  <p class="lede" style="margin-bottom:12px">「main 冻结了,为什么读协程还能跑?它不是 main 运行期间创建的吗?」——因为协程之间有两种完全不同的挂接方式,<strong>创建者是谁不重要,挂接方式才决定命运</strong>:</p>
+  <div class="split">
+    <div class="lanes">
+      <h3 style="margin-top:0">串联:<code class="mono">await</code></h3>
+      <pre class="mono" style="font-size:13px; line-height:1.9; overflow-x:auto">main
+ └─ await list_tools()
+     └─ await 底层发送…
+<span style="color:var(--frozen); font-weight:700">↑ 一条链,冻结时整串一起冻</span></pre>
+      <p style="font-size:13.5px; color:var(--ink-soft)">子协程接在我的调用链上,<b>成为我的一部分</b>,和我同生共死。视图 ① 的三个 await 都是串联——所以只能排队。</p>
+    </div>
+    <div class="lanes">
+      <h3 style="margin-top:0">并联:<code class="mono">create_task</code> / <code class="mono">start_soon</code></h3>
+      <pre class="mono" style="font-size:13px; line-height:1.9; overflow-x:auto">main        stdout_reader
+ │ (平级,互不包含) │
+ 冻结 ──→ 事件循环 ──→ 它照样跑
+<span style="color:var(--run); font-weight:700">↑ 户口单独立在事件循环</span></pre>
+      <p style="font-size:13.5px; color:var(--ink-soft)">出生在谁的代码里无所谓——注册那一刻就<b>切断脐带、独立进就绪队列</b>,与创建者平起平坐。gather 的并发、Client 的读协程,靠的都是它。</p>
+    </div>
+  </div>
+
+  <h3>读协程的真身:mcp 库源码 <code class="mono">stdio.py:141</code></h3>
+  <p class="lede" style="margin-bottom:12px">它不是我为了画图虚构的角色——这是你 <code class="mono">.venv</code> 里 mcp 库的真实代码。<code class="mono">async with Client(...)</code> 进入时(<code class="mono">__aenter__</code> 协程,async with 的隐藏挂起点),它被 <code class="mono">start_soon</code> 注册为独立任务:</p>
+  <div class="codebox" style="font-size:12.5px">
+<div class="cl"><span class="no"> </span><span class="cm"># .venv/lib/python3.12/site-packages/mcp/client/stdio.py</span></div>
+<div class="cl"><span class="no">141</span><span class="kw">async def</span> stdout_reader() -&gt; <span class="kw">None</span>:</div>
+<div class="cl"><span class="no">…</span>    <span class="kw">async for</span> chunk <span class="kw">in</span> stdout:              <span class="cm"># 无限循环:等子进程 stdout 吐数据(每轮迭代都是挂起点)</span></div>
+<div class="cl"><span class="no">…</span>        <span class="kw">for</span> line <span class="kw">in</span> lines:</div>
+<div class="cl"><span class="no">155</span>            <span class="kw">await</span> read_stream_writer.send(_parse_line(line))  <span class="cm"># 解析 JSON,按请求 id 唤醒等它的协程</span></div>
+<div class="cl"><span class="no"> </span></div>
+<div class="cl"><span class="no">201</span>tg.start_soon(stdout_reader)   <span class="cm"># ← 并联!注册为独立任务(≈ create_task)</span></div>
+<div class="cl"><span class="no">202</span>tg.start_soon(stdin_writer)    <span class="cm"># 还有个写协程,负责往 stdin 发请求</span></div>
+  </div>
+  <p style="font-size:13.5px; color:var(--ink-soft); max-width:68ch; margin-top:10px">为什么必须有它?main 冻着等回复,而<b>冻着的人无法叫醒自己</b>——必须有个独立的值班员盯着信箱:回复到了,按请求 id 查「这是谁在等的」,精确唤醒对应协程(gather 时两条回复乱序到达也不会张冠李戴)。类比:main 是寄了信就睡的人,stdout_reader 是收发室大爷。</p>
+</section>
+
+<!-- ═══════════════════ VIEW 2 ═══════════════════ -->
+<section class="view" id="v2">
+  <h2>把两个请求同时放上天:asyncio.gather</h2>
+  <p class="lede">视图 ① 里,<code class="mono">call_tool</code> 和 <code class="mono">read_resource</code> 是排队的:第二个请求要等第一个完全回来才发出。改用 <code class="mono">gather</code> 后,它们成为<strong>两个独立的 Task</strong>,进入事件循环的就绪队列——main 一冻结,线程就轮流分给它们,两个请求几乎同时飞向 server。</p>
+
+  <div class="split">
+    <div>
+      <div class="codebox" id="code2"></div>
+    </div>
+    <div class="stage">
+      <div class="threadchip"><span class="dot" id="dot2"></span><span>🧵 线程此刻在:<b id="holder2">—</b></span><span class="lbl" id="holderNote2"></span></div>
+      <div class="lanes" id="lanes2"></div>
+      <div class="legend">
+        <span><i style="background:var(--run)"></i>持有线程,运行中</span>
+        <span><i style="background:var(--frozen)"></i>冻结等待</span>
+        <span><i style="background:var(--loop)"></i>server 处理中</span>
+        <span><i style="background:var(--idle)"></i>空闲 / 已完成</span>
+      </div>
+      <div class="narr" id="narr2"><span class="stepno">按「下一步」开始</span><p>main 执行到 <code>await asyncio.gather(...)</code>。</p></div>
+      <div class="ctrls">
+        <button class="btn primary" id="next2">下一步 →</button>
+        <button class="btn" id="prev2">← 上一步</button>
+        <button class="btn" id="reset2">重置</button>
+        <span class="stepmeter" id="meter2"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare">
+    <h3 style="margin-top:0">⏱ 拖一拖:顺序 vs 并发,时间差从哪来</h3>
+    <label>add 请求耗时 <input type="range" id="t1" min="20" max="300" value="120"> <span class="mono" id="t1v">120ms</span></label>
+    <label>greeting 请求耗时 <input type="range" id="t2" min="20" max="300" value="200"> <span class="mono" id="t2v">200ms</span></label>
+    <div class="row"><span>顺序 await(视图①)</span><div class="barwrap" id="seqwrap"><div class="bar b1" id="seqb1"></div><div class="bar b2" id="seqb2"></div></div><span class="total" id="seqtotal"></span></div>
+    <div class="row"><span>gather 并发</span><div class="barwrap" id="conwrap"><div class="bar b1" id="conb1"></div><div class="bar b2" id="conb2"></div></div><span class="total" id="contotal"></span></div>
+    <div class="verdict" id="verdict"></div>
+    <p style="font-size:13px; color:var(--ink-soft); margin-top:8px">规律:顺序 = t₁ + t₂,并发 = max(t₁, t₂)。两个任务的等待重叠得越多,省得越多——因为省下的全部是「干等」的时间,CPU 计算一点没少。</p>
+  </div>
+</section>
+
+<!-- ═══════════════════ VIEW 3 ═══════════════════ -->
+<section class="view" id="v3">
+  <h2>为什么协程必须长这样</h2>
+  <p class="lede">左边是<strong>客观约束</strong>(世界就是这样),右边是 asyncio 的<strong>设计选择</strong>。每个选择都标着它由哪些约束逼出来。<strong>试着取消勾选某个约束</strong>——只靠它支撑的设计会变灰:如果那个约束不存在,这个设计就没有存在的理由。这能帮你区分"设计是必然的"还是"设计是时尚"。</p>
+
+  <div class="deriv">
+    <div>
+      <h3 style="margin-top:0">约束(可以试着关掉)</h3>
+      <label class="constraint"><input type="checkbox" checked data-c="C1"><span><span class="cid">C1</span> IO 等待占绝大多数时间——MCP 调用、网络请求,99% 的时间花在「等回复」,CPU 闲着</span></label>
+      <label class="constraint"><input type="checkbox" checked data-c="C2"><span><span class="cid">C2</span> 下一行代码通常依赖上一行的结果——<code class="mono">print(tools.tools)</code> 必须先拿到 tools</span></label>
+      <label class="constraint"><input type="checkbox" checked data-c="C3"><span><span class="cid">C3</span> 线程又贵又危险——切换走内核、栈以 MB 计;随时可能被打断,共享数据要加锁</span></label>
+      <label class="constraint"><input type="checkbox" checked data-c="C4"><span><span class="cid">C4</span> 一个线程同一时刻只能执行一行代码</span></label>
+    </div>
+    <div>
+      <h3 style="margin-top:0">被逼出来的设计</h3>
+      <div class="choice" data-needs="C1 C3">
+        <h4>事件循环 + 协作式调度</h4>
+        <div class="why">既然大家都在等 IO(C1),就让一个线程在等待的空档切去推进别的任务;既然线程贵且要加锁(C3),就不开多线程,用一个线程轮转。</div>
+        <div class="tags"><span class="tag" data-t="C1">C1</span><span class="tag" data-t="C3">C3</span></div>
+        <div class="lostnote">支撑它的约束都被你关掉了——如果等待不多、线程又便宜,直接开线程更简单,事件循环失去理由。</div>
+      </div>
+      <div class="choice" data-needs="C2 C4">
+        <h4>await:显式的挂起点</h4>
+        <div class="why">单线程必须有「交还线程」的机制(C4);而交还点必须写在代码里明确可见——因为只有你知道哪一行的结果是下一行必需的(C2)。副产品:两个 await 之间的代码绝不会被打断,不用加锁。</div>
+        <div class="tags"><span class="tag" data-t="C2">C2</span><span class="tag" data-t="C4">C4</span></div>
+        <div class="lostnote">支撑它的约束都被你关掉了——如果线程可以随意并行、行间又无依赖,就不需要显式挂起点了。</div>
+      </div>
+      <div class="choice" data-needs="C2">
+        <h4>默认顺序执行;并发必须显式写 gather / create_task</h4>
+        <div class="why">因为下一行常依赖上一行(C2),"自动并发"会悄悄拿到空结果、崩掉程序。所以语言默认保守:想并发,你亲手声明,承担"这两件事确实互不依赖"的责任。</div>
+        <div class="tags"><span class="tag" data-t="C2">C2</span></div>
+        <div class="lostnote">支撑它的约束被你关掉了——如果行间从不互相依赖,默认全部并发反而更快。</div>
+      </div>
+      <div class="choice" data-needs="C1 C4">
+        <h4>全套 async 库(httpx 而非 requests;asyncio.sleep 而非 time.sleep)</h4>
+        <div class="why">所有协程共享一个线程(C4),任何一个协程里的「不经过 await 的等待」都会攥着线程不放,全体冻结。所以每样会等的东西(C1)都要有 async 版,把等待变成可挂起的。</div>
+        <div class="tags"><span class="tag" data-t="C1">C1</span><span class="tag" data-t="C4">C4</span></div>
+        <div class="lostnote">支撑它的约束都被你关掉了——多线程世界里 time.sleep 只卡自己那条线程,不需要专门的 async 库。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gotcha">💡 <b>对照着看:</b>线程走的是另一条路——接受 C3 的代价(锁、开销)来换取「不用改写代码风格」;协程走的是「用显式 await 换掉锁和内核切换」。两者不是谁先进谁落后,是对同一组约束的两种取舍。你的 MCP 场景全是 IO 等待,所以 mcp 库选了协程这条路,整个 API 都是 async 的。</div>
+</section>
+
+<!-- ═══════════════════ VIEW 4 ═══════════════════ -->
+<section class="view" id="v4">
+  <h2>预测,然后验证</h2>
+  <p class="lede">别急着点答案——先在心里跑一遍,写下你的预测,再揭晓。预测错了才是最有价值的时刻:它精确暴露了模型里哪一环还没建牢。</p>
+
+  <div class="quiz" id="q1">
+    <h3 style="margin-top:0">题 1:请求是在哪一刻发出的?</h3>
+    <div class="codebox" style="margin: 10px 0">
+<div class="cl"><span class="no">1</span>task = asyncio.create_task(client.call_tool(<span class="st">"add"</span>, {<span class="st">"a"</span>: 3, <span class="st">"b"</span>: 4}))</div>
+<div class="cl"><span class="no">2</span>print(<span class="st">"甲"</span>)</div>
+<div class="cl"><span class="no">3</span>tools = <span class="kw">await</span> client.list_tools()</div>
+<div class="cl"><span class="no">4</span>print(<span class="st">"乙"</span>)</div>
+<div class="cl"><span class="no">5</span>result = <span class="kw">await</span> task</div>
+    </div>
+    <p><code class="mono">call_tool</code> 的请求(Task A 开始执行)发生在哪一刻?</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q1" value="a"><span>第 1 行:<code class="mono">create_task</code> 一执行,请求立刻发出</span></label>
+      <label class="opt"><input type="radio" name="q1" value="b"><span>第 3 行:main 在 <code class="mono">await list_tools</code> 处第一次冻结、交出线程之后</span></label>
+      <label class="opt"><input type="radio" name="q1" value="c"><span>第 5 行:直到 <code class="mono">await task</code> 才开始执行</span></label>
+    </div>
+    <button class="btn primary" onclick="revealQuiz('q1','b')">揭晓</button>
+    <div class="reveal">
+      <p><span class="r-ok">答案:第 3 行之后。</span>这题考的是「协作式」三个字的分量:<code class="mono">create_task</code> 只是把 Task A 放进就绪队列,但<b>线程还在 main 手里</b>——main 不主动挂起,谁也抢不走。所以第 1、2 行执行完,直到第 3 行 main 撞到 await 冻结、把线程还给事件循环,Task A 才第一次拿到线程、发出请求。打印顺序是 甲 → 乙(list_tools 回来后)→ task 的结果。</p>
+      <p style="margin-top:6px; color:var(--ink-soft); font-size:13.5px">如果你选了 A——那是抢占式(线程)世界的直觉;在协程世界里,「注册」和「开始跑」之间隔着一次 main 的主动让位。</p>
+    </div>
+  </div>
+
+  <div class="quiz" id="q2">
+    <h3 style="margin-top:0">题 2:哪个版本会让整个程序假死?</h3>
+    <div class="codebox" style="margin: 10px 0">
+<div class="cl"><span class="no">A</span><span class="kw">async def</span> slow():</div>
+<div class="cl"><span class="no"> </span>    time.sleep(3)          <span class="cm"># 版本 A</span></div>
+<div class="cl"><span class="no">B</span><span class="kw">async def</span> slow():</div>
+<div class="cl"><span class="no"> </span>    <span class="kw">await</span> asyncio.sleep(3) <span class="cm"># 版本 B</span></div>
+    </div>
+    <p>事件循环里同时还跑着另外 10 个协程。哪个版本会让那 10 个协程也冻住 3 秒?</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q2" value="a"><span>版本 A(<code class="mono">time.sleep</code>)</span></label>
+      <label class="opt"><input type="radio" name="q2" value="b"><span>版本 B(<code class="mono">await asyncio.sleep</code>)</span></label>
+      <label class="opt"><input type="radio" name="q2" value="c"><span>两个都会——反正都是睡 3 秒</span></label>
+    </div>
+    <button class="btn primary" onclick="revealQuiz('q2','a')">揭晓</button>
+    <div class="reveal">
+      <p><span class="r-ok">答案:版本 A。</span><code class="mono">time.sleep</code> 是普通函数调用,不是挂起点——它攥着线程原地干等 3 秒,线程回不到事件循环,其他 10 个协程全部冻结。版本 B 的 <code class="mono">await asyncio.sleep(3)</code> 是真正的挂起:slow 自己冻结、书签留下、线程立刻还给事件循环,其他协程照常跑,3 秒后事件循环再唤醒它。</p>
+      <p style="margin-top:6px; color:var(--ink-soft); font-size:13.5px">这就是视图 ③ 里「全套 async 库」那条设计的由来:async 世界里,<b>每一次等待都必须经过 await</b>,否则就是在毒死整个事件循环。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ FEEDBACK ═══════════════════ -->
+<div class="feedback">
+  <h2>没看懂?把问题带回给 Claude</h2>
+  <p class="lede" style="margin-top:6px">勾选没看懂的部分,或者用自己的话把机制讲一遍,然后点复制——把内容粘贴回 Claude Code 的对话里,我来针对性地补讲或检查你的理解。</p>
+  <div class="marks">
+    <label><input type="checkbox" value="视图①单协程逐帧执行(线程交还与唤醒)"> ① 逐帧执行没看懂</label>
+    <label><input type="checkbox" value="视图②gather并发(Task就绪队列/时间重叠)"> ② gather 并发没看懂</label>
+    <label><input type="checkbox" value="视图③设计推导(约束与选择的对应)"> ③ 设计推导没看懂</label>
+    <label><input type="checkbox" value="串联vs并联(await与create_task/start_soon的区别)"> 串联 vs 并联没看懂</label>
+    <label><input type="checkbox" value="stdout_reader读协程的作用(独立任务/按id唤醒)"> 读协程的作用没看懂</label>
+    <label><input type="checkbox" value="题1(create_task何时开始执行)"> 题 1 的答案没想通</label>
+    <label><input type="checkbox" value="题2(time.sleep毒死事件循环)"> 题 2 的答案没想通</label>
+  </div>
+  <textarea id="retell" placeholder="(可选)用你自己的话讲一遍:协程是什么?await 处发生了什么?线程去了哪?——写下来,让 Claude 检查你的理解。"></textarea>
+  <div class="ctrls" style="margin-top:12px">
+    <button class="btn primary" id="copyBtn">📋 复制为提问,发给 Claude</button>
+    <span class="copied" id="copiedMsg">已复制到剪贴板 ✓</span>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+/* ---------- tabs ---------- */
+document.querySelectorAll('nav.tabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('section.view').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById(b.dataset.v).classList.add('active');
+  });
+});
+
+/* ---------- code render helper ---------- */
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function renderCode(el, lines){
+  el.innerHTML = lines.map((l,i) =>
+    `<div class="cl" data-l="${i+1}"><span class="no">${i+1}</span>${l}</div>`).join('');
+}
+
+/* ---------- generic stepper ---------- */
+function makeStepper(cfg){
+  const codeEl = document.getElementById(cfg.code);
+  const lanesEl = document.getElementById(cfg.lanes);
+  const narrEl = document.getElementById(cfg.narr);
+  const holderEl = document.getElementById(cfg.holder);
+  const holderNoteEl = document.getElementById(cfg.holderNote);
+  const meterEl = document.getElementById(cfg.meter);
+  const termEl = cfg.term ? document.getElementById(cfg.term) : null;
+  let idx = -1;
+
+  renderCode(codeEl, cfg.codeLines);
+  lanesEl.innerHTML = cfg.laneNames.map((n,li) =>
+    `<div class="lane"><div class="name">${n}</div><div class="track">${
+      cfg.steps.map((_,si)=>`<div class="seg" data-lane="${li}" data-step="${si}"></div>`).join('')
+    }</div></div>`).join('');
+
+  function draw(){
+    // code highlight
+    codeEl.querySelectorAll('.cl').forEach(c => c.classList.remove('hl','hl-frozen'));
+    // segments
+    lanesEl.querySelectorAll('.seg').forEach(s => { s.className = 'seg'; });
+    for(let s=0; s<=idx; s++){
+      cfg.steps[s].lanes.forEach((st,li)=>{
+        const seg = lanesEl.querySelector(`.seg[data-lane="${li}"][data-step="${s}"]`);
+        seg.classList.add('on','s-'+st);
+        if(s===idx) seg.classList.add('cur');
+      });
+    }
+    // terminal
+    if(termEl){
+      let out = '<div class="prompt"># 终端输出</div>';
+      for(let s=0; s<=idx; s++) if(cfg.steps[s].out) out += `<div>${esc(cfg.steps[s].out)}</div>`;
+      termEl.innerHTML = out;
+    }
+    if(idx < 0){
+      narrEl.className = 'narr';
+      narrEl.innerHTML = `<span class="stepno">按「下一步」开始</span><p>${cfg.introNarr}</p>`;
+      holderEl.textContent = '—'; holderNoteEl.textContent = '';
+      meterEl.textContent = `0 / ${cfg.steps.length}`;
+      return;
+    }
+    const st = cfg.steps[idx];
+    const cl = codeEl.querySelector(`.cl[data-l="${st.line}"]`);
+    if(cl) cl.classList.add(st.frozen ? 'hl-frozen' : 'hl');
+    narrEl.className = 'narr' + (st.frozen ? ' frozen-narr' : '');
+    narrEl.innerHTML = `<span class="stepno">第 ${idx+1} / ${cfg.steps.length} 步</span><p>${st.narr}</p>`;
+    holderEl.textContent = st.thread;
+    holderNoteEl.textContent = st.threadNote || '';
+    meterEl.textContent = `${idx+1} / ${cfg.steps.length}`;
+  }
+
+  document.getElementById(cfg.next).onclick = () => { if(idx < cfg.steps.length-1){ idx++; draw(); } };
+  document.getElementById(cfg.prev).onclick = () => { if(idx > -1){ idx--; draw(); } };
+  document.getElementById(cfg.reset).onclick = () => { idx = -1; draw(); };
+  draw();
+}
+
+/* ---------- view 1 data ---------- */
+makeStepper({
+  code:'code1', lanes:'lanes1', narr:'narr1', holder:'holder1', holderNote:'holderNote1',
+  meter:'meter1', term:'term1', next:'next1', prev:'prev1', reset:'reset1',
+  introNarr: '从 <code>asyncio.run(main())</code> 那一行开始播放。',
+  codeLines: [
+    'server_params = StdioServerParameters(',
+    '    command=<span class="st">".venv/bin/python"</span>,',
+    '    args=[<span class="st">"Initial/server.py"</span>],',
+    ')',
+    '',
+    '<span class="kw">async def</span> main():',
+    '    <span class="kw">async with</span> Client(server_params) <span class="kw">as</span> client:',
+    '        tools = <span class="kw">await</span> client.list_tools()',
+    '        print(<span class="st">"Tools:"</span>, [t.name <span class="kw">for</span> t <span class="kw">in</span> tools.tools])',
+    '        result = <span class="kw">await</span> client.call_tool(<span class="st">"add"</span>, {<span class="st">"a"</span>: 3, <span class="st">"b"</span>: 4})',
+    '        print(<span class="st">"add(3, 4) ="</span>, result.content[0].text)',
+    '        resource = <span class="kw">await</span> client.read_resource(<span class="st">"greeting://jack"</span>)',
+    '        print(<span class="st">"greeting://jack -&gt;"</span>, resource.contents[0].text)',
+    '',
+    'asyncio.run(main())',
+  ],
+  laneNames: ['main 协程<br>(你写的)', '读协程 stdout_reader<br>(Client 创建,独立任务)', 'server 子进程<br>(server.py)'],
+  steps: [
+    { line:15, thread:'main 协程', narr:'<code>asyncio.run()</code> 启动事件循环,调用 <code>main()</code> 创建协程实例,把线程交给它开始执行。', lanes:['run','idle','idle'] },
+    { line:7, thread:'main 协程', narr:'<code>async with Client(...)</code> 进入时执行 <code>__aenter__()</code> 协程(async with 的隐藏挂起点之一):启动子进程 <code>.venv/bin/python Initial/server.py</code>,并用 <code>start_soon(stdout_reader)</code> 把<b>读协程注册为独立任务</b>——出生在 Client 的代码里,但户口单独立在事件循环,与 main <b>并联</b>而非串联。随后完成 initialize 握手。', lanes:['run','frozen','work'] },
+    { line:8, thread:'main 协程', narr:'调用 <code>client.list_tools()</code> → 创建 coroutine 实例;<code>await</code> 启动它:一条 <code>tools/list</code> 的 JSON 请求写入子进程的 stdin。到目前为止线程一直在 main 手里。', lanes:['run','frozen','work'] },
+    { line:8, thread:'stdout_reader 读协程', threadNote:'(事件循环转交)', frozen:true, narr:'<b>挂起点!</b>回复没到,main 无法继续 → <b>整个 main 冻结,书签夹在第 8 行</b>,线程交还事件循环。事件循环看一眼就绪队列:内部读协程可以跑——把线程给它,盯住 stdout。server 那边正在处理请求。', lanes:['frozen','run','work'] },
+    { line:8, thread:'stdout_reader 读协程', frozen:true, narr:'server 把工具列表写回 stdout → 读协程收到这条回复,对上请求编号,标记 <code>list_tools</code> 完成,<b>唤醒 main</b>。', lanes:['frozen','run','idle'] },
+    { line:9, thread:'main 协程', threadNote:'(从书签处继续)', narr:'main 被唤醒,从第 8 行的书签处继续:结果赋给 <code>tools</code>,往下走到第 9 行执行 print。', lanes:['run','frozen','idle'], out:"Tools: ['add']" },
+    { line:10, thread:'stdout_reader 读协程', frozen:true, narr:'同样的循环再来一遍:<code>await call_tool</code> 发出 <code>tools/call</code> 请求 → main 再次冻结在第 10 行 → 线程回到事件循环 → 交给读协程。server 正在执行你在 server.py 里写的 <code>add(3, 4)</code>。', lanes:['frozen','run','work'] },
+    { line:11, thread:'main 协程', narr:'server 返回 <code>7</code> → 读协程唤醒 main → <code>result</code> 拿到值,第 11 行打印。', lanes:['run','frozen','idle'], out:'add(3, 4) = 7' },
+    { line:12, thread:'stdout_reader 读协程', frozen:true, narr:'第三轮:<code>await read_resource</code> 发出 <code>resources/read</code> 请求,main 冻结在第 12 行。server 执行 <code>greeting("jack")</code>。', lanes:['frozen','run','work'] },
+    { line:13, thread:'main 协程', narr:'回复到达,main 唤醒,第 13 行打印资源内容。', lanes:['run','frozen','idle'], out:'greeting://jack -> Hello, jack!' },
+    { line:7, thread:'main 协程', narr:'<code>async with</code> 代码块结束:Client 收尾——关闭 server 子进程、注销内部读协程。', lanes:['run','idle','idle'] },
+    { line:15, thread:'事件循环(收尾)', narr:'main 协程执行完毕,事件循环没有别的任务了,<code>asyncio.run()</code> 返回,程序退出。整个过程:<b>一个线程,零把锁,三次「冻结→让位→唤醒」</b>。', lanes:['idle','idle','idle'] },
+  ],
+});
+
+/* ---------- view 2 data ---------- */
+makeStepper({
+  code:'code2', lanes:'lanes2', narr:'narr2', holder:'holder2', holderNote:'holderNote2',
+  meter:'meter2', next:'next2', prev:'prev2', reset:'reset2',
+  introNarr: 'main 执行到 <code>await asyncio.gather(...)</code>。',
+  codeLines: [
+    '<span class="kw">async def</span> main():',
+    '    <span class="kw">async with</span> Client(server_params) <span class="kw">as</span> client:',
+    '        result, resource = <span class="kw">await</span> asyncio.gather(',
+    '            client.call_tool(<span class="st">"add"</span>, {<span class="st">"a"</span>: 3, <span class="st">"b"</span>: 4}),',
+    '            client.read_resource(<span class="st">"greeting://jack"</span>),',
+    '        )',
+    '        print(<span class="st">"add ="</span>, result.content[0].text)',
+    '        print(<span class="st">"greeting -&gt;"</span>, resource.contents[0].text)',
+  ],
+  laneNames: ['main 协程', 'Task A<br>call_tool', 'Task B<br>read_resource', 'server 子进程'],
+  steps: [
+    { line:3, thread:'main 协程', narr:'<code>gather</code> 接过两个刚创建的 coroutine,把它们包装成 <b>Task A</b> 和 <b>Task B</b>,放进事件循环的<b>就绪队列</b>——这就是视图 ① 讲的<b>并联</b>(内部就是 create_task)。然后 main 冻结,等 gather 集齐所有结果。视图 ① 排队的根源是三个 await 全是<b>串联</b>;并发的分水岭,就是串联 vs 并联。', lanes:['run','idle','idle','idle'] },
+    { line:4, thread:'Task A', threadNote:'(事件循环调度)', frozen:true, narr:'main 一让位,事件循环立刻把线程给就绪队列里的 <b>Task A</b>:执行 call_tool,把 add 请求写进 stdin → Task A 撞到自己内部的 await,也冻结了。', lanes:['frozen','run','idle','work'] },
+    { line:5, thread:'Task B', frozen:true, narr:'线程马上转给 <b>Task B</b>:发出 greeting 请求 → B 也冻结。<b>看 server 泳道:两个请求此刻同时在天上飞</b>——这就是并发,而离 main 让位才过了不到一毫秒。', lanes:['frozen','frozen','run','work'] },
+    { line:4, thread:'Task A', frozen:true, narr:'add 的结果先回来(计算快)→ Task A 被唤醒,跑完收尾,<b>状态:完成</b>。Task B 还在等,main 也还冻着——gather 说好了要集齐。', lanes:['frozen','run','frozen','work'] },
+    { line:5, thread:'Task B', frozen:true, narr:'greeting 的结果到了 → Task B 唤醒、完成。gather 手里两份结果都齐了 → <b>唤醒 main</b>。', lanes:['frozen','idle','run','idle'] },
+    { line:7, thread:'main 协程', narr:'main 从第 3 行的书签处继续:gather <b>按你传参数的顺序</b>(不是按完成顺序)返回 <code>(result, resource)</code>,解包、打印。总耗时 ≈ 两个请求中<b>较慢那个</b>的时间,而不是两者之和。', lanes:['run','idle','idle','idle'] },
+  ],
+});
+
+/* ---------- view 2 playground ---------- */
+function updateCompare(){
+  const t1 = +document.getElementById('t1').value;
+  const t2 = +document.getElementById('t2').value;
+  document.getElementById('t1v').textContent = t1 + 'ms';
+  document.getElementById('t2v').textContent = t2 + 'ms';
+  const seq = t1 + t2, con = Math.max(t1, t2);
+  const scale = 100 / seq;   // sequential bar always fills
+  const s1 = document.getElementById('seqb1'), s2 = document.getElementById('seqb2');
+  s1.style.left = '0'; s1.style.width = (t1*scale) + '%';
+  s2.style.left = (t1*scale) + '%'; s2.style.width = (t2*scale) + '%';
+  const c1 = document.getElementById('conb1'), c2 = document.getElementById('conb2');
+  c1.style.left = '0'; c1.style.width = (t1*scale) + '%'; c1.style.height = '50%';
+  c2.style.left = '0'; c2.style.width = (t2*scale) + '%'; c2.style.top = '50%'; c2.style.height = '50%';
+  document.getElementById('seqtotal').textContent = seq + 'ms';
+  document.getElementById('contotal').textContent = con + 'ms';
+  const save = seq - con;
+  document.getElementById('verdict').innerHTML =
+    `并发省下 <b>${save}ms(${Math.round(save/seq*100)}%)</b> —— 省的正是较快那个请求「本来要排队干等」的整段时间。`;
+}
+document.getElementById('t1').addEventListener('input', updateCompare);
+document.getElementById('t2').addEventListener('input', updateCompare);
+updateCompare();
+
+/* ---------- view 3 derivation ---------- */
+document.querySelectorAll('.constraint input').forEach(cb => {
+  cb.addEventListener('change', () => {
+    cb.closest('.constraint').classList.toggle('off', !cb.checked);
+    const active = new Set([...document.querySelectorAll('.constraint input:checked')].map(x => x.dataset.c));
+    document.querySelectorAll('.choice').forEach(ch => {
+      const needs = ch.dataset.needs.split(' ');
+      ch.querySelectorAll('.tag').forEach(t => t.classList.toggle('dim', !active.has(t.dataset.t)));
+      ch.classList.toggle('lost', !needs.some(n => active.has(n)));
+    });
+  });
+});
+
+/* ---------- view 4 quiz ---------- */
+function revealQuiz(id, correct){
+  const q = document.getElementById(id);
+  const picked = q.querySelector(`input[name="${id}"]:checked`);
+  q.querySelectorAll('.opt').forEach(o => {
+    const v = o.querySelector('input').value;
+    o.classList.remove('correct','wrong');
+    if(v === correct) o.classList.add('correct');
+    else if(picked && o.querySelector('input') === picked) o.classList.add('wrong');
+  });
+  q.classList.add('done');
+}
+
+/* ---------- feedback copy ---------- */
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const marks = [...document.querySelectorAll('.feedback .marks input:checked')].map(x => x.value);
+  const retell = document.getElementById('retell').value.trim();
+  let msg = '我看了「协程与挂起点」可视化页面(基于我的 Initial/client.py)。\n';
+  if(marks.length) msg += '\n以下部分我还没完全看懂,请再讲讲:\n' + marks.map(m => '- ' + m).join('\n') + '\n';
+  if(retell) msg += '\n我试着用自己的话讲一遍,请检查我的理解哪里有偏差:\n"""\n' + retell + '\n"""\n';
+  if(!marks.length && !retell) msg += '\n我都看懂了,请出一道新的预测题考考我,或者带我进入下一步实战。';
+  try {
+    await navigator.clipboard.writeText(msg);
+    const c = document.getElementById('copiedMsg');
+    c.classList.add('show'); setTimeout(() => c.classList.remove('show'), 2000);
+  } catch(e) {
+    prompt('自动复制被浏览器拦截,请手动复制:', msg);
+  }
+});
+</script>
+</body>
+</html>
