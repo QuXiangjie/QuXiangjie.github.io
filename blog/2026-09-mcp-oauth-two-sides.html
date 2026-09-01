@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP 鉴权:OAuth 两侧分工</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    --paper: #f5f7f6;
+    --card: #ffffff;
+    --ink: #1d2a2a;
+    --ink-soft: #5a6b69;
+    --line: #dde5e3;
+    --client: #0c7f74;      /* 客户端的活(OAuth clients 页) */
+    --client-bg: #d9efec;
+    --server: #7a4fd0;      /* server 侧的活(本页) */
+    --server-bg: #eae1fa;
+    --auth: #b97e14;        /* 授权服务器的活(现成产品) */
+    --auth-bg: #f6ead2;
+    --user: #b3423a;        /* 用户亲自操作 */
+    --user-bg: #f7dedc;
+    --idle: #cbd5d3;
+    --code-bg: #10201d;
+    --code-ink: #d7e6e2;
+    --ok: #0c7f74;
+    --bad: #b3423a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101817; --card: #182321; --ink: #e6eeec; --ink-soft: #96a8a5; --line: #26332f;
+      --client: #2fbfae; --client-bg: #123a35;
+      --server: #a98cf0; --server-bg: #2a2046;
+      --auth: #e0a33c; --auth-bg: #3a2e12;
+      --user: #e07168; --user-bg: #40201d;
+      --idle: #35423f; --code-bg: #0b1513; --code-ink: #cfe0dc;
+      --ok: #2fbfae; --bad: #e07168;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101817; --card: #182321; --ink: #e6eeec; --ink-soft: #96a8a5; --line: #26332f;
+    --client: #2fbfae; --client-bg: #123a35;
+    --server: #a98cf0; --server-bg: #2a2046;
+    --auth: #e0a33c; --auth-bg: #3a2e12;
+    --user: #e07168; --user-bg: #40201d;
+    --idle: #35423f; --code-bg: #0b1513; --code-ink: #cfe0dc;
+    --ok: #2fbfae; --bad: #e07168;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.7; font-size: 15px;
+  }
+  code, pre, .mono { font-family: "JetBrains Mono", "Menlo", monospace; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header h1 { font-size: 29px; font-weight: 700; }
+  header .sub { color: var(--ink-soft); margin-top: 4px; }
+  .purpose {
+    margin-top: 20px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); padding: 18px 22px; display: grid; gap: 10px;
+  }
+  .purpose .tag { font-size: 12px; letter-spacing: .12em; color: var(--server); font-weight: 700; margin-right: 8px; }
+  .purpose ol { padding-left: 22px; }
+
+  nav.tabs { display: flex; gap: 6px; margin: 28px 0 0; flex-wrap: wrap; border-bottom: 2px solid var(--line); }
+  nav.tabs button {
+    border: none; background: none; color: var(--ink-soft); font: inherit; font-weight: 500;
+    padding: 10px 14px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.active { color: var(--client); border-bottom-color: var(--client); font-weight: 700; }
+  nav.tabs button:focus-visible { outline: 2px solid var(--server); outline-offset: 2px; border-radius: 4px; }
+
+  section.view { display: none; padding-top: 26px; }
+  section.view.active { display: block; }
+  section.view > .lede { max-width: 70ch; color: var(--ink-soft); margin-bottom: 18px; }
+  section.view > .lede strong { color: var(--ink); }
+  h2 { font-size: 21px; margin-bottom: 6px; }
+  h3 { font-size: 16px; margin: 18px 0 8px; }
+
+  /* ---------- sequence diagram ---------- */
+  .seq-split { display: grid; grid-template-columns: minmax(0, 56%) minmax(0, 44%); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .seq-split { grid-template-columns: 1fr; } }
+
+  .seq { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 10px 18px; }
+  .actors { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 6px; }
+  .actors .actor { text-align: center; font-size: 12.5px; font-weight: 700; line-height: 1.35; }
+  .actors .actor small { display: block; font-weight: 400; color: var(--ink-soft); font-size: 11px; }
+  .canvas { position: relative; }
+  .lifeline { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--line); }
+  .msg { position: relative; height: 56px; opacity: .13; transition: opacity .15s; }
+  .msg.done { opacity: .55; }
+  .msg.cur { opacity: 1; }
+  .msg .arrow { position: absolute; top: 34px; height: 0; border-top: 2.5px solid var(--c); }
+  .msg .arrow::after {
+    content: ""; position: absolute; top: -6.5px; border: 5.5px solid transparent;
+  }
+  .msg .arrow.r::after { right: -2px; border-left-color: var(--c); }
+  .msg .arrow.l::after { left: -2px; border-right-color: var(--c); }
+  .msg .mlabel {
+    position: absolute; top: 6px; font-size: 11.5px; font-family: "JetBrains Mono", monospace;
+    color: var(--c); font-weight: 700; white-space: nowrap; transform: translateX(-50%);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  }
+  .msg .selfbox {
+    position: absolute; top: 12px; transform: translateX(-50%);
+    border: 2px solid var(--c); color: var(--c); background: var(--card);
+    font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 4px 10px; white-space: nowrap;
+  }
+  .msg.cur .mlabel, .msg.cur .selfbox { z-index: 2; }
+
+  /* side badge colors */
+  .b-client { --c: var(--client); }
+  .b-server { --c: var(--server); }
+  .b-auth   { --c: var(--auth); }
+  .b-user   { --c: var(--user); }
+
+  .badge {
+    display: inline-block; font-size: 12px; font-weight: 700; border-radius: 6px;
+    padding: 2px 10px; margin-bottom: 6px;
+  }
+  .badge.client { color: var(--client); background: var(--client-bg); }
+  .badge.server { color: var(--server); background: var(--server-bg); }
+  .badge.auth { color: var(--auth); background: var(--auth-bg); }
+  .badge.user { color: var(--user); background: var(--user-bg); }
+
+  .narr {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--client);
+    border-radius: 10px; padding: 14px 18px; min-height: 130px;
+  }
+  .narr .stepno { font-size: 12px; letter-spacing: .1em; color: var(--ink-soft); font-weight: 700; }
+  .narr p { margin-top: 4px; }
+  .narr code { background: var(--server-bg); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  .httplog {
+    background: var(--code-bg); color: var(--code-ink); border-radius: 10px;
+    padding: 12px 16px; font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+    line-height: 1.75; min-height: 80px; max-height: 260px; overflow-y: auto; white-space: pre-wrap;
+  }
+  .httplog .cm { color: #56736c; }
+
+  .ctrls { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-weight: 700; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 8px 18px;
+  }
+  .btn.primary { background: var(--client); border-color: var(--client); color: #fff; }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:focus-visible { outline: 2px solid var(--server); outline-offset: 2px; }
+  .stepmeter { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--ink-soft); margin-top: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 14px; border-radius: 4px; }
+
+  .gotcha {
+    border: 1px solid var(--auth); background: var(--auth-bg);
+    border-radius: 10px; padding: 14px 18px; margin-top: 22px;
+  }
+  .gotcha b { color: var(--auth); }
+
+  /* ---------- contrast cards ---------- */
+  .cards2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .cards2 { grid-template-columns: 1fr; } }
+  .bigcard { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .bigcard h3 { margin-top: 0; }
+  .bigcard ul { padding-left: 20px; margin-top: 8px; }
+  .bigcard li { margin: 5px 0; }
+  .bigcard .no { color: var(--bad); font-weight: 700; }
+  .bigcard .yes { color: var(--ok); font-weight: 700; }
+
+  /* ---------- derivation ---------- */
+  .deriv { display: grid; grid-template-columns: minmax(0,42%) minmax(0,58%); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .deriv { grid-template-columns: 1fr; } }
+  .constraint {
+    display: flex; gap: 10px; align-items: flex-start; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  }
+  .constraint input { margin-top: 5px; accent-color: var(--client); }
+  .constraint .cid { font-weight: 700; color: var(--server); font-size: 13px; }
+  .constraint.off { opacity: .45; }
+  .choice { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; transition: opacity .2s; }
+  .choice h4 { font-size: 15px; }
+  .choice .why { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+  .choice .tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .choice .tag { font-size: 12px; font-weight: 700; color: var(--server); background: var(--server-bg); border-radius: 5px; padding: 1px 8px; }
+  .choice .tag.dim { opacity: .3; text-decoration: line-through; }
+  .choice.lost { opacity: .35; }
+  .choice .lostnote { display: none; color: var(--bad); font-size: 13px; font-weight: 700; margin-top: 6px; }
+  .choice.lost .lostnote { display: block; }
+
+  /* ---------- quiz ---------- */
+  .quiz { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 22px; margin-bottom: 22px; }
+  .quiz .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .quiz .opt { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .quiz .opt input { margin-top: 5px; accent-color: var(--client); }
+  .quiz .opt.correct { border-color: var(--ok); background: var(--client-bg); }
+  .quiz .opt.wrong { border-color: var(--bad); }
+  .quiz .reveal { display: none; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
+  .quiz.done .reveal { display: block; }
+  .quiz .reveal .r-ok { color: var(--ok); font-weight: 700; }
+
+  /* ---------- feedback ---------- */
+  .feedback { margin-top: 40px; border-top: 2px solid var(--line); padding-top: 24px; }
+  .feedback .marks { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 16px; }
+  .feedback .marks label {
+    display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; background: var(--card);
+  }
+  .feedback textarea {
+    width: 100%; min-height: 90px; font: inherit; font-size: 14px; background: var(--card);
+    color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 12px; resize: vertical;
+  }
+  .copied { color: var(--ok); font-size: 13px; font-weight: 700; margin-left: 8px; opacity: 0; transition: opacity .2s; }
+  .copied.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>MCP 鉴权:OAuth 两侧分工</h1>
+  <div class="sub">看懂文档那句话:"This page is the server side. A client that discovers your authorization server and fetches the token — see <em>OAuth clients</em>."</div>
+
+  <div class="purpose">
+    <div><span class="tag">目的</span>为将来把你的 MCP server 部署成公网 HTTP 服务做准备——那时"谁能调我的工具"就成了必答题,而文档把答案拆在了 server / client 两页里,得先看懂分工。</div>
+    <div><span class="tag">学完标准</span>看完你应该能回答:
+      <ol>
+        <li>完整流程 11 步,每一步是谁在干活?哪些步是"本页(server 侧)"教的,哪些步是"《OAuth clients》页"教的?→ 视图 ①</li>
+        <li>你现在的 stdio server 为什么<b>不需要</b>这一套?什么时候才需要?→ 视图 ②</li>
+        <li>为什么是 token 而不是密码?为什么客户端能"自动发现"授权服务器?→ 视图 ③</li>
+      </ol>
+    </div>
+    <div><span class="tag">深度预算</span>4 个视图。这是"将来时"的知识——你当前的 stdio 模式用不到,目标是建立地图,不是背细节。</div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="active" data-v="v1">① 完整流程:逐帧时序图</button>
+  <button data-v="v2">② stdio 为什么不需要这套</button>
+  <button data-v="v3">③ 为什么必须这样设计</button>
+  <button data-v="v4">④ 预测练习</button>
+</nav>
+
+<!-- ═══════════ VIEW 1 ═══════════ -->
+<section class="view active" id="v1">
+  <h2>一次"从被拒到放行"的完整旅程</h2>
+  <p class="lede">四个角色:<strong>用户</strong>(在浏览器里点同意的人)、<strong>MCP 客户端</strong>(如 Claude Code)、<strong>你的 MCP server</strong>、<strong>授权服务器</strong>(发 token 的,通常是 Auth0 / Keycloak 这类现成产品)。每一步的徽章告诉你:这是文档哪一页教的活。点「下一步」。</p>
+
+  <div class="seq-split">
+    <div class="seq">
+      <div class="actors">
+        <div class="actor">👤 用户<small>浏览器</small></div>
+        <div class="actor">🖥 MCP 客户端<small>Claude Code 等</small></div>
+        <div class="actor">🛠 你的 MCP server<small>受保护资源</small></div>
+        <div class="actor">🔐 授权服务器<small>Auth0 / Keycloak…</small></div>
+      </div>
+      <div class="canvas" id="canvas">
+        <div class="lifeline" style="left:12.5%"></div>
+        <div class="lifeline" style="left:37.5%"></div>
+        <div class="lifeline" style="left:62.5%"></div>
+        <div class="lifeline" style="left:87.5%"></div>
+        <!-- msgs injected by JS -->
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--client)"></i>客户端的活(OAuth clients 页)</span>
+        <span><i style="background:var(--server)"></i>server 侧的活(本页)</span>
+        <span><i style="background:var(--auth)"></i>授权服务器的活(现成产品)</span>
+        <span><i style="background:var(--user)"></i>用户亲自操作</span>
+      </div>
+    </div>
+    <div>
+      <div class="narr" id="narr"><span class="stepno">按「下一步」开始</span><p>客户端第一次调用你的 server,还没有任何凭证。</p></div>
+      <div class="ctrls">
+        <button class="btn primary" id="next">下一步 →</button>
+        <button class="btn" id="prev">← 上一步</button>
+        <button class="btn" id="reset">重置</button>
+        <span class="stepmeter" id="meter"></span>
+      </div>
+      <h3>📜 线上真实往来(累积)</h3>
+      <div class="httplog" id="httplog"><span class="cm"># HTTP 报文摘要会随步骤出现在这里</span></div>
+    </div>
+  </div>
+
+  <div class="gotcha">💡 <b>数一数徽章就看懂了那句文档:</b>紫色步骤(声明自己受保护、指路、验 token)= "This page is the server side";青色步骤(发现授权服务器、走流程拿 token、带 token 重试)= "A client that discovers your authorization server and fetches the token" → 《OAuth clients》页。琥珀色的授权服务器你通常<b>不用自己写</b>——用现成产品,你只负责和它对接。</div>
+</section>
+
+<!-- ═══════════ VIEW 2 ═══════════ -->
+<section class="view" id="v2">
+  <h2>你现在的 stdio server,为什么一行鉴权都不用写?</h2>
+  <p class="lede">鉴权要回答的问题是:<strong>"这个请求是谁发来的?他有资格吗?"</strong>——两种传输方式下,这个问题的处境完全不同。</p>
+
+  <div class="cards2">
+    <div class="bigcard">
+      <h3>stdio(你现在的模式)</h3>
+      <ul>
+        <li>server 是客户端<b>亲手启动的子进程</b>——能启动它,说明你已经登录了这台电脑</li>
+        <li>通信走 stdin/stdout 管道,<b>只有父进程摸得到</b>,外人物理上无法插话</li>
+        <li>信任由<b>操作系统的进程边界</b>保证,天然只有一个调用者</li>
+        <li class="yes">结论:不需要 OAuth。"谁在调用"这个问题在进程创建那一刻已经回答完了。</li>
+      </ul>
+    </div>
+    <div class="bigcard">
+      <h3>Streamable HTTP(公网部署)</h3>
+      <ul>
+        <li>server 挂在一个 <b>URL</b> 上,全世界任何人都能对它发请求</li>
+        <li>请求可能来自你、你同事、爬虫、攻击者——<b>网络包不自带身份</b></li>
+        <li>工具可能碰真实数据(数据库、内部 API),放错人进来就是事故</li>
+        <li class="no">结论:必须鉴权。每个请求都要出示凭证,server 每次都要验。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="gotcha">📌 <b>什么时候需要回来读这两页文档?</b>触发条件就一个:你把 server 从 stdio 改成 HTTP 对外提供服务的那天。在那之前,OAuth 这整套对你是"知道存在即可"。这也是文档设计的信号:鉴权章节只出现在 HTTP 传输的章节树下,stdio 教程里提都不提。</div>
+</section>
+
+<!-- ═══════════ VIEW 3 ═══════════ -->
+<section class="view" id="v3">
+  <h2>为什么必须长这样</h2>
+  <p class="lede">和协程页一样的玩法:左边是<strong>客观约束</strong>,右边是 OAuth/MCP 的<strong>设计选择</strong>。取消勾选某个约束,只靠它支撑的设计会变灰——检验哪些是"必然",哪些只是"惯例"。</p>
+
+  <div class="deriv">
+    <div>
+      <h3 style="margin-top:0">约束(试着关掉)</h3>
+      <label class="constraint"><input type="checkbox" checked data-c="C1"><span><span class="cid">C1</span> server 公网可达,任何人都能对它发请求,网络包不自带身份</span></label>
+      <label class="constraint"><input type="checkbox" checked data-c="C2"><span><span class="cid">C2</span> 用户的密码只能交给它的主人(授权服务器),绝不能给第三方应用经手</span></label>
+      <label class="constraint"><input type="checkbox" checked data-c="C3"><span><span class="cid">C3</span> 客户端事先不认识你的 server——不知道你用哪家授权服务器、端点在哪(MCP 客户端要能连上任意 server)</span></label>
+      <label class="constraint"><input type="checkbox" checked data-c="C4"><span><span class="cid">C4</span> 桌面客户端是"公开客户端":代码在用户手里,藏不住任何密钥</span></label>
+    </div>
+    <div>
+      <h3 style="margin-top:0">被逼出来的设计</h3>
+      <div class="choice" data-needs="C1 C2">
+        <h4>凭 token 而不是凭密码</h4>
+        <div class="why">每个请求都要证明身份(C1),但密码不能到处传(C2)→ 用户只在授权服务器登录一次,换出一张<b>范围受限、会过期、可吊销</b>的 token 给客户端用。泄露了也只是废掉一张票,不是丢掉账户。</div>
+        <div class="tags"><span class="tag" data-t="C1">C1</span><span class="tag" data-t="C2">C2</span></div>
+        <div class="lostnote">约束被关掉了——如果请求天然可信或密码可以随便给,直接传密码更简单,token 失去理由。</div>
+      </div>
+      <div class="choice" data-needs="C3">
+        <h4>发现机制:401 指路 + /.well-known 元数据</h4>
+        <div class="why">客户端不认识你(C3),所以协议规定了"问路"的标准动作:被拒时 server 在 <code class="mono">WWW-Authenticate</code> 头里给出元数据地址,元数据里写着授权服务器在哪、端点是什么。任何客户端对任何 server 都能自动走通,无需人工配置。</div>
+        <div class="tags"><span class="tag" data-t="C3">C3</span></div>
+        <div class="lostnote">约束被关掉了——如果客户端和 server 是一家人、配置写死即可,就不需要发现机制。</div>
+      </div>
+      <div class="choice" data-needs="C4">
+        <h4>PKCE:一次性的"暗号对"</h4>
+        <div class="why">桌面客户端藏不住固定密钥(C4)→ 每次授权前现场生成随机 verifier,把它的哈希(challenge)带去授权;换 token 时出示原文。中途截获授权码的人没有 verifier,换不走 token。<b>用一次性随机数替代了藏不住的长期秘密。</b></div>
+        <div class="tags"><span class="tag" data-t="C4">C4</span></div>
+        <div class="lostnote">约束被关掉了——如果客户端能安全保管密钥(如后端服务器),经典的 client_secret 就够了。</div>
+      </div>
+      <div class="choice" data-needs="C1 C3">
+        <h4>三角分工:server 只验票,不发票</h4>
+        <div class="why">发 token 涉及登录页、用户库、密钥轮换——安全上极难做对。所以架构上把"发票"外包给专业的授权服务器(C1 的风险集中到专业选手),你的 server 只做无状态验票。这正是那句文档的由来:两页文档,两侧分工。</div>
+        <div class="tags"><span class="tag" data-t="C1">C1</span><span class="tag" data-t="C3">C3</span></div>
+        <div class="lostnote">约束被关掉了——没有公网风险时,server 自己随便发个 API key 也未尝不可。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ VIEW 4 ═══════════ -->
+<section class="view" id="v4">
+  <h2>预测,然后验证</h2>
+  <p class="lede">老规矩:先在心里给出答案,再点揭晓。</p>
+
+  <div class="quiz" id="q1">
+    <h3 style="margin-top:0">题 1:token 是谁签发的?</h3>
+    <p>客户端最终拿到的 access token,是下面哪个角色签发的?</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q1" value="a"><span>你的 MCP server——毕竟是它要求鉴权的</span></label>
+      <label class="opt"><input type="radio" name="q1" value="b"><span>授权服务器——MCP server 只负责验证,从不签发</span></label>
+      <label class="opt"><input type="radio" name="q1" value="c"><span>MCP 客户端自己生成,server 登记备案</span></label>
+    </div>
+    <button class="btn primary" onclick="revealQuiz('q1','b')">揭晓</button>
+    <div class="reveal">
+      <p><span class="r-ok">答案:授权服务器。</span>这是三角分工的核心:<b>发票的和验票的不是同一个人</b>。你的 server 拿到 token 后,用授权服务器公开的签名公钥验证它(签名对不对、过没过期、audience 是不是自己),全程不需要问授权服务器一句话。如果你选了 A——那是 API key 模式的直觉,OAuth 恰恰为了把"发票"这个高危业务从你的 server 里挪走。</p>
+    </div>
+  </div>
+
+  <div class="quiz" id="q2">
+    <h3 style="margin-top:0">题 2:你把现在的 server.py 部署到公司内网 HTTP,谁的代码要改?</h3>
+    <p>你的 Demo server 从 stdio 改为 HTTP 并要求鉴权。<code class="mono">add</code> 和 <code class="mono">greeting</code> 这些<b>工具函数本身</b>需要改动吗?</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q2" value="a"><span>要,每个工具都得加一个 token 参数并自己验证</span></label>
+      <label class="opt"><input type="radio" name="q2" value="b"><span>不用,鉴权配置在 server 层(传输入口),工具函数一行不改</span></label>
+    </div>
+    <button class="btn primary" onclick="revealQuiz('q2','b')">揭晓</button>
+    <div class="reveal">
+      <p><span class="r-ok">答案:不用改。</span>又是那个反复出现的主题——<b>分层</b>。验 token 发生在请求进门的传输层,过了门,工具函数收到的就是干净的参数。协议和传输分层、类型和传输分层、鉴权和业务分层——MCP 的整个 SDK 都在重复同一个设计动作。(需要知道"是谁在调用"的工具,可以从请求上下文里读身份,但那是读信息,不是做验证。)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FEEDBACK ═══════════ -->
+<div class="feedback">
+  <h2>没看懂?把问题带回给 Claude</h2>
+  <p class="lede" style="margin-top:6px">勾选没看懂的部分,或用自己的话复述流程,点复制后粘回 Claude Code 的对话。</p>
+  <div class="marks">
+    <label><input type="checkbox" value="视图①时序图(11步流程/角色分工)"> ① 时序图没看懂</label>
+    <label><input type="checkbox" value="视图②stdio为什么不需要鉴权"> ② stdio/HTTP 对比没看懂</label>
+    <label><input type="checkbox" value="视图③设计推导(token/发现机制/PKCE/三角分工)"> ③ 设计推导没看懂</label>
+    <label><input type="checkbox" value="PKCE的原理"> PKCE 没想通</label>
+    <label><input type="checkbox" value="server如何离线验证token(签名/公钥)"> "验票不问发票人"没想通</label>
+  </div>
+  <textarea id="retell" placeholder="(可选)用你自己的话讲一遍:客户端从被拒到调通,中间经历了什么?server 侧负责什么,client 侧负责什么?"></textarea>
+  <div class="ctrls" style="margin-top:12px">
+    <button class="btn primary" id="copyBtn">📋 复制为提问,发给 Claude</button>
+    <span class="copied" id="copiedMsg">已复制到剪贴板 ✓</span>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+/* ---------- tabs ---------- */
+document.querySelectorAll('nav.tabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('section.view').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById(b.dataset.v).classList.add('active');
+  });
+});
+
+/* ---------- sequence data ----------
+   actors: 0=用户浏览器 1=MCP客户端 2=MCP server 3=授权服务器 (centers at 12.5/37.5/62.5/87.5%) */
+const CENTERS = [12.5, 37.5, 62.5, 87.5];
+const SIDE = { client:'客户端的活 ·《OAuth clients》页', server:'server 侧的活 · 本页', auth:'授权服务器的活 · 现成产品', user:'用户亲自操作' };
+
+const STEPS = [
+  { from:1, to:2, side:'client', label:'tools/list(无 token)',
+    narr:'客户端满怀希望地调用你的 server——但一张票都没带。',
+    http:'POST /mcp  { "method": "tools/list" }\n<span class="cm"># 没有 Authorization 头</span>' },
+  { from:2, to:1, side:'server', label:'401 + 去哪问路',
+    narr:'<b>server 侧的第一件活:拒绝,并指路。</b>返回 401,并在 <code>WWW-Authenticate</code> 头里附上"我的资源元数据在这个地址"。拒绝得有教养,是整个自动发现的起点。',
+    http:'HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer\n  resource_metadata=\n  "https://your-server/.well-known/oauth-protected-resource"' },
+  { from:1, to:2, side:'server', label:'GET /.well-known/…(读元数据)',
+    narr:'客户端顺着指路去取元数据。<b>server 侧的第二件活:</b>在这个标准地址上公示"我是受保护资源,我信任的授权服务器是 ×××"。这就是文档说的 <i>discovers your authorization server</i> 的被发现方。',
+    http:'GET /.well-known/oauth-protected-resource\n→ { "authorization_servers":\n    ["https://auth.example.com"] }' },
+  { from:1, to:3, side:'auth', label:'读授权服务器元数据',
+    narr:'客户端转向授权服务器,同样从标准地址拿它的元数据:授权端点、token 端点、注册端点分别在哪。至此,客户端从"两眼一抹黑"到"路线图齐全",没有任何人工配置。',
+    http:'GET https://auth.example.com\n  /.well-known/oauth-authorization-server\n→ { "authorization_endpoint": "…/authorize",\n    "token_endpoint": "…/token", … }' },
+  { from:1, to:3, side:'auth', label:'动态注册 → client_id',
+    narr:'客户端向授权服务器自我介绍并注册(Dynamic Client Registration),领到一张 <code>client_id</code>。这一步让"任意客户端连任意 server"不需要提前到每家授权服务器开户。',
+    http:'POST /register\n  { "client_name": "Claude Code", … }\n→ { "client_id": "abc123" }' },
+  { from:1, to:0, side:'client', label:'弹出浏览器(带 PKCE 暗号)',
+    narr:'客户端现场生成一对 PKCE 暗号(随机 verifier + 它的哈希 challenge),然后打开系统浏览器,把用户送到授权服务器的登录页,顺便递上 challenge。<b>注意:客户端自己绝不经手用户密码。</b>',
+    http:'<span class="cm"># 客户端本地生成:</span>\ncode_verifier = 随机串(自己留着)\ncode_challenge = SHA256(verifier)\n<span class="cm"># 打开浏览器 →</span> …/authorize?client_id=abc123\n  &code_challenge=xxx&redirect_uri=…' },
+  { from:0, to:3, side:'user', label:'登录 + 点"同意授权"',
+    narr:'<b>全流程唯一需要人出场的一步:</b>用户在授权服务器自己的页面上登录(密码只交给它的主人!),看到"Claude Code 想访问你的 Bookshop server",点同意。',
+    http:'<span class="cm"># 发生在浏览器里,对客户端不可见</span>\n用户 → auth.example.com:登录 ✓ 同意 ✓' },
+  { from:3, to:1, side:'auth', label:'记账 + 302 送回授权码 code',
+    narr:'授权服务器做两件事:<b>①在自己数据库里记一笔账</b>——以 code 为索引,存下这次授权的全部上下文(client_id、回调地址、第 6 步收到的 challenge、用户和授权范围);<b>②让浏览器重定向</b>回客户端的回调地址,捎回这张<b>一次性授权码</b>。code 还不是 token——它只是"用户同意过了"的凭据,兼这笔账的查询索引。',
+    http:'<span class="cm"># 授权服务器内部记账(以 code 为索引):</span>\ncode "AUTH_CODE_9f3a" ↦\n  client_id:      abc123\n  redirect_uri:   http://localhost:53682/callback\n  code_challenge: E9Mel4xOa1…  <span class="cm">← 第6步收到的,原样存着</span>\n  用户: jack · scope: mcp:read · 10分钟有效 · 仅一次\n\n<span class="cm"># 然后重定向浏览器:</span>\n302 Location:\n  http://localhost:53682/callback?code=AUTH_CODE_9f3a' },
+  { from:1, to:3, side:'client', label:'code + verifier ⇄ token',
+    narr:'客户端<b>直连</b>(不经浏览器)向 token 端点换票:交出 code 和 PKCE 的<b>原文 verifier</b>(首次出场,走 HTTPS 请求体)。授权服务器<b>拿 code 当索引查回第 8 步那笔账</b>,逐项核对,最后现算 SHA256(verifier) 和账上的 challenge 对账——对得上,证明"换票的就是当初发起的那位"。中途偷走 code 的人没有 verifier,换不走。',
+    http:'POST /token   <span class="cm">(客户端直连,verifier 在加密请求体里)</span>\n  grant_type=authorization_code\n  &code=AUTH_CODE_9f3a\n  &code_verifier=dBjftJeZ4CVP…  <span class="cm">← 原文</span>\n  &client_id=abc123\n\n<span class="cm"># 授权服务器核验(拿 code 查账,逐项对):</span>\n<span class="cm"># 1. code 存在?未过期?未用过? ✓</span>\n<span class="cm"># 2. client_id、redirect_uri 与账上一致? ✓</span>\n<span class="cm"># 3. SHA256(verifier) ≟ 账上的 challenge ✓</span>\n<span class="cm"># → 发 token,并作废这条 code</span>\n→ { "access_token": "eyJhbGci…", "expires_in": 3600 }' },
+  { from:1, to:2, side:'client', label:'tools/list + Bearer token',
+    narr:'客户端重新发起最初那个请求——这次 <code>Authorization</code> 头里带着 token。<i>fetches the token</i> 的使命完成,以后每个请求都自动带上它。',
+    http:'POST /mcp  { "method": "tools/list" }\nAuthorization: Bearer eyJhbGci…' },
+  { from:2, to:2, side:'server', label:'验票 ✓ → 放行', self:true,
+    narr:'<b>server 侧的最后一件活:验票。</b>用授权服务器的公钥验签名、查过期时间、核对 audience 是不是自己——全程离线,不用问任何人。通过,执行工具,返回结果。此后每个请求都重复这一步,直到 token 过期、客户端再去换新的。',
+    http:'<span class="cm"># server 内部:验签 ✓ 未过期 ✓ audience ✓</span>\n→ 200 { "tools": [{ "name": "add" }, …] }' },
+];
+
+/* ---------- render sequence ---------- */
+const canvas = document.getElementById('canvas');
+STEPS.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = `msg b-${s.side}`;
+  if (s.self) {
+    div.innerHTML = `<div class="selfbox" style="left:${CENTERS[s.from]}%">${i+1}. ${s.label}</div>`;
+  } else {
+    const a = CENTERS[s.from], b = CENTERS[s.to];
+    const left = Math.min(a, b), w = Math.abs(a - b);
+    const dir = b > a ? 'r' : 'l';
+    div.innerHTML =
+      `<div class="mlabel" style="left:${left + w/2}%">${i+1}. ${s.label}</div>` +
+      `<div class="arrow ${dir}" style="left:${left}%; width:${w}%"></div>`;
+  }
+  canvas.appendChild(div);
+});
+
+/* ---------- stepper ---------- */
+let idx = -1;
+const narrEl = document.getElementById('narr');
+const meterEl = document.getElementById('meter');
+const logEl = document.getElementById('httplog');
+
+function draw() {
+  canvas.querySelectorAll('.msg').forEach((m, i) => {
+    m.classList.toggle('done', i < idx);
+    m.classList.toggle('cur', i === idx);
+  });
+  if (idx < 0) {
+    narrEl.innerHTML = '<span class="stepno">按「下一步」开始</span><p>客户端第一次调用你的 server,还没有任何凭证。</p>';
+    narrEl.style.borderLeftColor = 'var(--client)';
+    logEl.innerHTML = '<span class="cm"># HTTP 报文摘要会随步骤出现在这里</span>';
+    meterEl.textContent = `0 / ${STEPS.length}`;
+    return;
+  }
+  const s = STEPS[idx];
+  narrEl.innerHTML = `<span class="badge ${s.side}">${SIDE[s.side]}</span>` +
+    `<div class="stepno">第 ${idx+1} / ${STEPS.length} 步 · ${s.label}</div><p>${s.narr}</p>`;
+  narrEl.style.borderLeftColor = `var(--${s.side})`;
+  let log = '';
+  for (let i = 0; i <= idx; i++) log += `<span class="cm"># —— 第 ${i+1} 步 ——</span>\n${STEPS[i].http}\n\n`;
+  logEl.innerHTML = log;
+  logEl.scrollTop = logEl.scrollHeight;
+  meterEl.textContent = `${idx+1} / ${STEPS.length}`;
+}
+document.getElementById('next').onclick = () => { if (idx < STEPS.length-1) { idx++; draw(); } };
+document.getElementById('prev').onclick = () => { if (idx > -1) { idx--; draw(); } };
+document.getElementById('reset').onclick = () => { idx = -1; draw(); };
+draw();
+
+/* ---------- derivation ---------- */
+document.querySelectorAll('.constraint input').forEach(cb => {
+  cb.addEventListener('change', () => {
+    cb.closest('.constraint').classList.toggle('off', !cb.checked);
+    const active = new Set([...document.querySelectorAll('.constraint input:checked')].map(x => x.dataset.c));
+    document.querySelectorAll('.choice').forEach(ch => {
+      const needs = ch.dataset.needs.split(' ');
+      ch.querySelectorAll('.tag').forEach(t => t.classList.toggle('dim', !active.has(t.dataset.t)));
+      ch.classList.toggle('lost', !needs.some(n => active.has(n)));
+    });
+  });
+});
+
+/* ---------- quiz ---------- */
+function revealQuiz(id, correct) {
+  const q = document.getElementById(id);
+  const picked = q.querySelector(`input[name="${id}"]:checked`);
+  q.querySelectorAll('.opt').forEach(o => {
+    const v = o.querySelector('input').value;
+    o.classList.remove('correct','wrong');
+    if (v === correct) o.classList.add('correct');
+    else if (picked && o.querySelector('input') === picked) o.classList.add('wrong');
+  });
+  q.classList.add('done');
+}
+
+/* ---------- feedback copy ---------- */
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const marks = [...document.querySelectorAll('.feedback .marks input:checked')].map(x => x.value);
+  const retell = document.getElementById('retell').value.trim();
+  let msg = '我看了「MCP 鉴权:OAuth 两侧分工」可视化页面。\n';
+  if (marks.length) msg += '\n以下部分我还没完全看懂,请再讲讲:\n' + marks.map(m => '- ' + m).join('\n') + '\n';
+  if (retell) msg += '\n我试着用自己的话讲一遍,请检查我的理解哪里有偏差:\n"""\n' + retell + '\n"""\n';
+  if (!marks.length && !retell) msg += '\n我都看懂了,请出一道新的预测题考考我,或者带我实际部署一个带鉴权的 HTTP server。';
+  try {
+    await navigator.clipboard.writeText(msg);
+    const c = document.getElementById('copiedMsg');
+    c.classList.add('show'); setTimeout(() => c.classList.remove('show'), 2000);
+  } catch (e) {
+    prompt('自动复制被浏览器拦截,请手动复制:', msg);
+  }
+});
+</script>
+</body>
+</html>
