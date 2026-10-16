@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>An agent's state lives on local disk — Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="nav"><a href="index.html">← Blog</a><a href="../index.html">Home</a></nav>
+<main class="wrap">
+<article class="post">
+  <div class="date">October 2026</div>
+  <h1>An agent's state lives on local disk</h1>
+
+  <p>Notes from Anthropic's <a href="https://code.claude.com/docs/en/agent-sdk/hosting">"Hosting the Agent SDK"</a>. The Agent SDK spawns a <code>claude</code> CLI subprocess that owns a shell, a working directory, and session files on disk. So hosting an agent isn't like hosting a stateless API wrapper. Every running agent is a long-lived process tied to local state.</p>
+
+  <h2>State lives on local disk</h2>
+
+  <p>By default, three kinds of agent state live on the container's filesystem:</p>
+  <ul>
+    <li><strong>Session transcripts</strong> — JSONL files under <code>~/.claude/projects/</code>.</li>
+    <li><strong><code>CLAUDE.md</code> memory files</strong> — <code>~/.claude/CLAUDE.md</code> for the user, and the working directory for the project.</li>
+    <li><strong>Working-directory artifacts</strong> — whatever the agent writes into its working directory.</li>
+  </ul>
+  <p>None of them survive a container restart, a scale-down, or a move to another node. A <code>SessionStore</code> can persist transcripts, but it only covers transcripts. Memory files and artifacts need their own storage, such as a mounted volume or an object-store sync.</p>
+
+  <h2>Four session patterns</h2>
+
+  <p>Session lifecycle comes down to how long a container lives compared with the sessions it serves:</p>
+  <ul>
+    <li><strong>Ephemeral</strong> — one container per task, destroyed when the task finishes. Good for one-off jobs like a bug fix, invoice extraction, or a translation.</li>
+    <li><strong>Long-running</strong> — persistent containers, often running several SDK processes each. Good for agents that run all the time: an email triager, a Slack bot, a hosted site builder.</li>
+    <li><strong>Hybrid</strong> — ephemeral containers that load the session from a <code>SessionStore</code> on startup and write updates back. Good for sessions that go idle between check-ins. Here the store is required: without it, shutting down the container loses the transcript.</li>
+    <li><strong>Multi-agent container</strong> — several SDK subprocesses in one container, for agents that work closely together. Give each agent its own working directory so their files and <code>CLAUDE.md</code> don't leak into each other.</li>
+  </ul>
+
+  <p>The takeaway for me: before I pick where an agent runs, I need to decide where its state lives. The session pattern follows from that.</p>
+
+  <a class="backlink" href="index.html">← Back to all posts</a>
+</article>
+</main>
+<footer class="wrap">© 2026 Jack Qu</footer>
+</body></html>
