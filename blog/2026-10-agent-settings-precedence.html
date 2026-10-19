@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Settings Precedence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Same visual system as "Agent Isolation Layers": one column of views, each a panel tied to a Done-when question. */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --sunk:#E8ECF2; --ink:#17202B; --muted:#586477; --line:#D6DDE7;
+  --accent:#2F55C8; --accent-soft:#E3EAFB;
+  --fence:#0B8577; --fence-soft:#DDF2EE;
+  --leak:#C23A3A; --leak-soft:#F8E3E2;
+  --warn:#9A6500; --warn-soft:#F7EED9;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans","Arial Narrow",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E131A; --surface:#151C25; --sunk:#1C2530; --ink:#E4E9F0; --muted:#94A1B3; --line:#283240;
+    --accent:#86A2FF; --accent-soft:#1D2A4D;
+    --fence:#3CC7B4; --fence-soft:#123430;
+    --leak:#F27676; --leak-soft:#3A1B1D;
+    --warn:#E3B04F; --warn-soft:#352A12;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E131A; --surface:#151C25; --sunk:#1C2530; --ink:#E4E9F0; --muted:#94A1B3; --line:#283240;
+  --accent:#86A2FF; --accent-soft:#1D2A4D;
+  --fence:#3CC7B4; --fence-soft:#123430;
+  --leak:#F27676; --leak-soft:#3A1B1D;
+  --warn:#E3B04F; --warn-soft:#352A12;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15.5px/1.6 var(--sans);margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.page{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+h1,h2,h3{font-family:var(--cond);text-wrap:balance;margin:0;letter-spacing:-.005em}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.05;font-weight:700}
+h2{font-size:26px;font-weight:600}
+h3{font-size:17px;font-weight:600}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+a{color:var(--accent)}
+.eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);max-width:66ch;margin-top:10px}
+
+.brief{display:grid;grid-template-columns:1.1fr 1.6fr .6fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.brief>div{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.brief ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.brief .q{cursor:pointer}
+.brief .q.done{color:var(--fence)}
+.brief .q.done::after{content:" ✓";font-weight:600}
+@media (max-width:760px){.brief{grid-template-columns:1fr}}
+
+section.view{display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px}
+.vhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;border-top:2px solid var(--ink);padding-top:12px}
+.vhead .tag{font:500 12px var(--mono);color:var(--muted)}
+.vhead .spacer{flex:1}
+.unclear{font:500 12.5px var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:4px 12px;cursor:pointer}
+.unclear[aria-pressed="true"]{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+button{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* view 1: anchor */
+.anchor{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.anchor .stage{padding:10px;border-right:1px solid var(--line);overflow-x:auto}
+.anchor svg{display:block;width:100%;min-width:620px;height:auto}
+.anchor .narr{padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.stepno{font:600 12px var(--mono);color:var(--accent)}
+.narr h3{font-size:20px}
+.terms{display:flex;flex-wrap:wrap;gap:6px}
+.term{font:500 12.5px var(--mono);background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:2px 7px}
+.ladder{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ladder li{display:grid;grid-template-columns:22px 1fr;gap:2px 8px;padding:6px 10px;font-size:13px;border-top:1px solid var(--line);transition:background .25s}
+.ladder li:first-child{border-top:0}
+.ladder .rk{font:600 12px var(--mono);color:var(--muted);grid-row:span 2}
+.ladder .nm{font-weight:600}
+.ladder .fp{font:400 11px var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.ladder li.hot{background:var(--accent-soft)}
+.ladder li.hot .rk,.ladder li.hot .nm{color:var(--accent)}
+.ladder li.cut .nm,.ladder li.cut .fp{text-decoration:line-through;color:var(--muted)}
+.ctrl{display:flex;gap:8px;margin-top:auto;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn:disabled{opacity:.4;cursor:default}
+.dots{display:flex;gap:5px;margin-left:auto}
+.dots span{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.dots span.on{background:var(--accent)}
+@media (max-width:820px){.anchor{grid-template-columns:1fr}.anchor .stage{border-right:0;border-bottom:1px solid var(--line)}}
+
+svg text{font-family:var(--mono);fill:var(--ink)}
+svg .lbl{font-size:12.5px;font-weight:500}
+svg .sub{font-size:10.5px;fill:var(--muted)}
+svg .box{fill:var(--surface);stroke:var(--line);stroke-width:1.4}
+svg .ctr{fill:var(--sunk);stroke:var(--muted);stroke-width:1.2}
+svg .folder{fill:var(--bg);stroke:var(--line);stroke-width:1.2;stroke-dasharray:5 3}
+svg .edge{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .el{transition:opacity .35s}
+svg .el.off{opacity:0}
+svg .el.dim{opacity:.4}
+svg .hot .box,svg .hot .folder{stroke:var(--accent);stroke-width:2.4}
+svg .hot .edge{stroke:var(--accent);stroke-width:2.2}
+svg .leakline{stroke:var(--leak);stroke-width:2;stroke-dasharray:6 4;fill:none}
+svg .leaktxt{fill:var(--leak);font-size:11px;font-weight:600}
+svg .veil{fill:var(--sunk);opacity:.78}
+svg .blocked{stroke:var(--leak);stroke-width:2.4}
+svg .fencetxt{fill:var(--fence);font-size:11px;font-weight:600}
+svg .ch rect{fill:none;stroke:var(--line);stroke-dasharray:3 2}
+svg .ch text{font-size:9.5px;fill:var(--muted)}
+svg .ch.on rect{fill:var(--accent-soft);stroke:var(--accent);stroke-dasharray:none}
+svg .ch.on text{fill:var(--accent);font-weight:600}
+svg .ch.x rect{fill:var(--leak-soft);stroke:var(--leak);stroke-dasharray:none}
+svg .ch.x text{fill:var(--leak);text-decoration:line-through}
+@media (prefers-reduced-motion:reduce){svg .el,.ladder li{transition:none}}
+
+/* view 2: resolver */
+.rctl{display:flex;flex-wrap:wrap;gap:14px 26px;padding:14px 16px;align-items:flex-start}
+.rctl fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rctl legend{padding:0;margin-bottom:6px}
+.rctl .row{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.rctl label{display:inline-flex;gap:6px;align-items:center;font-size:14px;cursor:pointer}
+.rctl input{accent-color:var(--accent)}
+.codeline{font:12.5px/1.5 var(--mono);background:var(--sunk);padding:8px 12px;border-radius:6px;overflow-x:auto;white-space:pre}
+.presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.mwrap{overflow-x:auto}
+table.rs{border-collapse:separate;border-spacing:0;width:100%;min-width:860px;font-size:13px}
+.rs th,.rs td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.rs thead th{font:600 12px/1.3 var(--sans);color:var(--muted);vertical-align:bottom}
+.rs thead th small{display:block;font:400 10.5px var(--mono)}
+.rs tbody th{font:500 12.5px var(--mono);width:170px}
+.rs tbody th small{display:block;font:400 11px var(--sans);color:var(--muted);margin-top:2px}
+.rs td.v{font:12px var(--mono);overflow-wrap:anywhere;color:var(--ink)}
+.rs td.v.none{color:var(--muted)}
+.rs td.v.unl{opacity:.35;text-decoration:line-through}
+.rs td.v.win{box-shadow:inset 0 0 0 2px var(--accent);border-radius:6px;background:var(--accent-soft)}
+.rs td.v.part{box-shadow:inset 0 0 0 1px var(--accent);border-radius:6px}
+.rs td.res{font:12px var(--mono);background:var(--sunk);min-width:200px}
+.res .item{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:baseline}
+.src{font:600 10.5px var(--mono);border-radius:4px;padding:1px 5px;white-space:nowrap}
+.s-trust{background:var(--fence-soft);color:var(--fence)}
+.s-taint{background:var(--leak-soft);color:var(--leak)}
+.rs tr{cursor:pointer}
+.rs tr.sel th{color:var(--accent)}
+.summary{font-size:14px;padding:10px 14px;border-radius:8px;background:var(--sunk)}
+.summary b.bad{color:var(--leak)}
+.summary b.ok{color:var(--fence)}
+.detail{font-size:13.5px;min-height:44px;padding:10px 14px;background:var(--sunk);border-radius:8px}
+.note{font-size:13.5px;color:var(--muted);border-left:3px solid var(--warn);padding:2px 0 2px 12px;max-width:80ch}
+.note.red{border-left-color:var(--leak)}
+
+/* view 3: derivation */
+.deriv{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:760px){.deriv{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cons{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.cons input{margin-top:4px;accent-color:var(--accent)}
+.cons .why{display:block;color:var(--muted);font-size:12.5px}
+.cons.hl,.choice.hl{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.choice{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);transition:opacity .25s}
+.choice.off{opacity:.33}
+.choice.off .ct{text-decoration:line-through}
+.choice .ct{font-weight:600}
+.choice .ct code{font-weight:500}
+.choice .reasons{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.choice .reasons span{font:500 11px var(--mono);border-radius:4px;padding:1px 6px;background:var(--accent-soft);color:var(--accent)}
+.choice .reasons span.gone{background:var(--leak-soft);color:var(--leak);text-decoration:line-through}
+.choice small{display:block;color:var(--muted);font-size:12.5px;margin-top:4px}
+
+/* view 4: layer table */
+table.lt{border-collapse:separate;border-spacing:0;width:100%;min-width:860px;font-size:13.5px}
+.lt th,.lt td{padding:10px 9px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.lt thead th{font:600 12px/1.3 var(--sans);color:var(--muted);vertical-align:bottom}
+.lt td.rk{font:600 13px var(--mono);color:var(--accent);width:34px}
+.lt td.fp{font:12px var(--mono);overflow-wrap:anywhere}
+.lt td.gap{color:var(--muted);font-style:italic}
+.pill{display:inline-block;font:600 11px var(--mono);border-radius:4px;padding:2px 6px;margin-bottom:3px}
+.p-wide{background:var(--warn-soft);color:var(--warn)}
+.p-one{background:var(--accent-soft);color:var(--accent)}
+.p-trust{background:var(--fence-soft);color:var(--fence)}
+.p-taint{background:var(--leak-soft);color:var(--leak)}
+.lt small{display:block;color:var(--muted);font-size:12px}
+
+/* view 5: exercise */
+.ex{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:760px){.ex{grid-template-columns:1fr}}
+.card{padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card .scen{font-size:14.5px}
+.card pre{margin:0;font:12.5px/1.5 var(--mono);background:var(--sunk);padding:8px 10px;border-radius:6px;overflow-x:auto}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.ans{font-size:14px;padding:10px 12px;border-radius:6px}
+.ans.right{background:var(--fence-soft)}
+.ans.wrong{background:var(--leak-soft)}
+.ans b{display:block;margin-bottom:2px}
+
+/* feedback */
+.fb{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.fb{grid-template-columns:1fr}}
+.fb .panel{padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+textarea{width:100%;min-height:120px;font:14px/1.5 var(--sans);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.marked{font-size:13.5px;color:var(--muted)}
+.toast{font-size:12.5px;color:var(--fence);min-height:18px}
+.stopnote{font-size:13.5px;color:var(--muted);max-width:80ch}
+</style>
+</head>
+<body>
+<div class="page">
+<nav style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font:600 14px var(--sans)"><a href="index.html">← Blog</a><a href="2026-10-agent-isolation-layers.html">Companion post</a></nav>
+
+<header style="display:flex;flex-direction:column;gap:16px">
+  <div class="eyebrow">Claude Agent SDK · configuration</div>
+  <h1>Agent Settings Precedence</h1>
+  <p class="lede">The same container as the <a href="2026-10-agent-isolation-layers.html">Agent Isolation Layers</a> post, with a different question: where each <code>claude</code> session reads its config from, and which value wins when two layers disagree. Order, highest first: managed policy, then programmatic options (<code>settings</code>, <code>allowed_tools</code>, <code>agents</code>…), then local, project and user files. <code>setting_sources</code> decides which of those three files load at all.</p>
+  <div class="brief" aria-label="Why this page exists">
+    <div><span class="eyebrow">Purpose</span><p>Pick <code>setting_sources</code> and <code>settings</code> for a container that serves several tenants, and be able to explain the choice.</p></div>
+    <div><span class="eyebrow">Done when you can answer</span>
+      <ol>
+        <li class="q" data-q="1" data-go="v2">For a given key, which value does session A end up with, and what changes when a layer isn't loaded?</li>
+        <li class="q" data-q="2" data-go="v4">Which settings files do A and B share, and which can the agent itself rewrite?</li>
+        <li class="q" data-q="3" data-go="v3">Why does a multi-tenant container use <code>setting_sources=[]</code> plus <code>settings</code>, and when would you add <code>"project"</code> back?</li>
+      </ol>
+    </div>
+    <div><span class="eyebrow">Depth</span><p>5 views, about 12 minutes. Answer the exercises to check off the questions.</p></div>
+  </div>
+</header>
+
+<!-- VIEW 1 -->
+<section class="view" id="v1" data-view="Anchor: where each layer lives in the container">
+  <div class="vhead"><span class="tag">View 1 · sets up Q1 and Q2</span><h2>Where each layer lives</h2><span class="spacer"></span><button class="unclear" aria-pressed="false">Mark unclear</button></div>
+  <div class="panel anchor">
+    <div class="stage">
+      <svg id="tree" viewBox="0 0 760 460" role="img" aria-label="A container with your app, two claude sessions, the managed policy file, the shared user settings file, and per-tenant folders holding project and local settings">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+        </defs>
+        <g class="el" data-id="ctr" data-s="0">
+          <rect class="ctr" x="14" y="14" width="732" height="432" rx="12"/>
+          <text class="lbl" x="30" y="38">container</text><text class="sub" x="106" y="38">every process runs as Unix user app · HOME=/home/app</text>
+        </g>
+        <g class="el" data-id="app" data-s="0">
+          <rect class="box" x="34" y="52" width="200" height="46" rx="7"/>
+          <text class="lbl" x="48" y="73">your app</text><text class="sub" x="48" y="89">FastAPI · PID 1 · query(options)</text>
+        </g>
+        <g class="el" data-id="A" data-s="0">
+          <path class="edge" d="M110 98 V174" marker-end="url(#ah)"/><text class="sub" x="118" y="140">stdio</text>
+          <rect class="box" x="34" y="176" width="200" height="46" rx="7"/>
+          <text class="lbl" x="48" y="197">claude · session A</text><text class="sub" x="48" y="213">cwd /work/a</text>
+        </g>
+        <g class="el" data-id="B" data-s="0">
+          <path class="edge" d="M34 75 H24 V339 H32" marker-end="url(#ah)"/><text class="sub" x="30" y="300">stdio</text>
+          <rect class="box" x="34" y="316" width="200" height="46" rx="7"/>
+          <text class="lbl" x="48" y="337">claude · session B</text><text class="sub" x="48" y="353">cwd /work/b</text>
+        </g>
+        <g id="chipsA" transform="translate(0,230)"></g>
+        <g id="chipsB" transform="translate(0,370)"></g>
+
+        <g class="el" data-id="user" data-s="1">
+          <rect class="box" x="420" y="118" width="310" height="46" rx="7"/>
+          <text class="lbl" x="432" y="139">/home/app/.claude/settings.json</text><text class="sub" x="432" y="155">user · one file for every session</text>
+          <path class="edge" d="M420 141 H278 V346"/>
+          <path class="edge" d="M278 206 H236" marker-end="url(#ah)"/>
+          <path class="edge" d="M278 346 H236" marker-end="url(#ah)"/>
+        </g>
+        <g class="el" data-id="projA" data-s="2">
+          <rect class="folder" x="300" y="186" width="430" height="96" rx="8"/>
+          <text class="sub" x="314" y="204">/work/a · tenant A's repo</text>
+          <text class="lbl" x="314" y="228">.claude/settings.json</text><text class="sub" x="500" y="228">project</text>
+          <text class="lbl" x="314" y="272">CLAUDE.md</text><text class="sub" x="398" y="272">memory · loads with "project"</text>
+        </g>
+        <g class="el" data-id="projB" data-s="2">
+          <rect class="folder" x="300" y="326" width="430" height="96" rx="8"/>
+          <text class="sub" x="314" y="344">/work/b · tenant B's repo</text>
+          <text class="lbl" x="314" y="368">.claude/settings.json</text><text class="sub" x="500" y="368">project</text>
+          <text class="lbl" x="314" y="412">CLAUDE.md</text><text class="sub" x="398" y="412">memory · loads with "project"</text>
+        </g>
+        <g class="el" data-id="localA" data-s="3"><text class="lbl" x="314" y="250">.claude/settings.local.json</text><text class="sub" x="540" y="250">local</text></g>
+        <g class="el" data-id="localB" data-s="3"><text class="lbl" x="314" y="390">.claude/settings.local.json</text><text class="sub" x="540" y="390">local</text></g>
+        <g class="el" data-id="opts" data-s="4">
+          <path class="edge" d="M110 98 V174" marker-end="url(#ah)"/>
+          <path class="edge" d="M34 75 H24 V339 H32" marker-end="url(#ah)"/>
+          <text class="sub" x="118" y="124">settings=…, allowed_tools=…</text>
+        </g>
+        <g class="el" data-id="managed" data-s="5">
+          <rect class="box" x="420" y="52" width="310" height="46" rx="7"/>
+          <text class="lbl" x="432" y="73">/etc/claude-code/managed-settings.json</text><text class="sub" x="432" y="89">managed · root-owned · baked into image</text>
+          <path class="edge" d="M420 75 H288 V328"/>
+          <path class="edge" d="M288 188 H236" marker-end="url(#ah)"/>
+          <path class="edge" d="M288 328 H236" marker-end="url(#ah)"/>
+        </g>
+        <g class="el" data-id="leak" data-s="6">
+          <path class="leakline" d="M234 214 C 262 236, 284 232, 310 226"/>
+          <path class="leakline" d="M234 196 C 330 176, 380 150, 418 146"/>
+          <text class="leaktxt" x="314" y="303">A's bash writes these files → the next query() loads them</text>
+        </g>
+        <g class="el" data-id="cut" data-s="7">
+          <rect class="veil" x="420" y="118" width="310" height="46" rx="7"/>
+          <rect class="veil" x="300" y="186" width="430" height="96" rx="8"/>
+          <rect class="veil" x="300" y="326" width="430" height="96" rx="8"/>
+          <line class="blocked" x1="566" y1="131" x2="584" y2="151"/><line class="blocked" x1="566" y1="151" x2="584" y2="131"/>
+          <line class="blocked" x1="506" y1="224" x2="524" y2="244"/><line class="blocked" x1="506" y1="244" x2="524" y2="224"/>
+          <line class="blocked" x1="506" y1="364" x2="524" y2="384"/><line class="blocked" x1="506" y1="384" x2="524" y2="364"/>
+          <text class="fencetxt" x="560" y="303">setting_sources=[]: not read</text>
+        </g>
+      </svg>
+    </div>
+    <div class="narr">
+      <div class="stepno" id="stepno">Step 1 / 8</div>
+      <h3 id="steptitle"></h3>
+      <p id="steptext"></p>
+      <div class="terms" id="stepterms"></div>
+      <ol class="ladder" id="ladder" aria-label="Precedence, highest first"></ol>
+      <div class="ctrl">
+        <button class="btn" id="prev">Back</button>
+        <button class="btn primary" id="next">Next step</button>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW 2 -->
+<section class="view" id="v2" data-view="Playground: resolve each key">
+  <div class="vhead"><span class="tag">View 2 · answers Q1</span><h2>Resolve each key</h2><span class="spacer"></span><button class="unclear" aria-pressed="false">Mark unclear</button></div>
+  <p class="lede" style="margin-top:0">Six keys with example values in each layer. Change what loads and see which value each session ends up with. Red tags mark values that came from a file a session can write.</p>
+  <div class="presets" role="group" aria-label="Presets">
+    <span class="eyebrow">Try</span>
+    <button class="chip" data-preset="all">All sources, no settings=</button>
+    <button class="chip" data-preset="allopts">All sources + settings=</button>
+    <button class="chip" data-preset="proj">["project"] + settings=</button>
+    <button class="chip" data-preset="none">[] + settings=</button>
+  </div>
+  <div class="panel rctl">
+    <fieldset><legend class="eyebrow">Session</legend>
+      <div class="row" role="group" aria-label="Session">
+        <button class="chip" data-sess="a" id="sess-a">A · /work/a</button>
+        <button class="chip" data-sess="b" id="sess-b">B · /work/b</button>
+      </div>
+    </fieldset>
+    <fieldset><legend class="eyebrow">setting_sources</legend>
+      <div class="row">
+        <label><input type="checkbox" id="src-user" data-src="user"> user</label>
+        <label><input type="checkbox" id="src-project" data-src="project"> project</label>
+        <label><input type="checkbox" id="src-local" data-src="local"> local</label>
+      </div>
+    </fieldset>
+    <fieldset><legend class="eyebrow">Also</legend>
+      <div class="row">
+        <label><input type="checkbox" id="opt-on"> code passes settings=</label>
+        <label><input type="checkbox" id="mgd-on"> managed-settings.json in image</label>
+      </div>
+    </fieldset>
+  </div>
+  <div class="codeline" id="codeline"></div>
+  <div class="panel mwrap"><table class="rs" id="rs"></table></div>
+  <div class="summary" id="summary"></div>
+  <div class="detail" id="rdetail" aria-live="polite">Tap a row to see why that value wins.</div>
+  <p class="note">Single values such as <code>model</code> take the highest loaded layer. List-style keys such as permission rules, hooks and memory files are combined from every loaded layer, which is why an override in <code>settings=</code> can't remove a hook a repo file added. These merge rules follow how Claude Code treats settings; check <a href="https://code.claude.com/docs/en/agent-sdk/configuration" target="_blank" rel="noopener">Settings precedence</a> for edge cases.</p>
+</section>
+
+<!-- VIEW 3 -->
+<section class="view" id="v3" data-view="Derivation: why [] + settings">
+  <div class="vhead"><span class="tag">View 3 · answers Q3</span><h2>Why <code>[]</code> plus <code>settings</code></h2><span class="spacer"></span><button class="unclear" aria-pressed="false">Mark unclear</button></div>
+  <p class="lede" style="margin-top:0">Each choice on the right exists because of facts on the left. Untick a fact and the choices that depended on it fade. The pattern buttons load the facts that hold in each setting.</p>
+  <div class="presets" role="group" aria-label="Situations">
+    <span class="eyebrow">Situation</span>
+    <button class="chip" data-pat="laptop">Your laptop</button>
+    <button class="chip" data-pat="ci">CI on your own repo</button>
+    <button class="chip" data-pat="multi">Multi-tenant container</button>
+    <button class="chip" data-pat="multimd">Multi-tenant + repo CLAUDE.md</button>
+  </div>
+  <div class="detail" id="patnote" aria-live="polite"></div>
+  <div class="deriv">
+    <div class="col"><span class="eyebrow">Facts (constraints)</span><div class="col" id="cons"></div></div>
+    <div class="col"><span class="eyebrow">Choices they force</span><div class="col" id="choices"></div></div>
+  </div>
+</section>
+
+<!-- VIEW 4 -->
+<section class="view" id="v4" data-view="Contrast: the five layers side by side">
+  <div class="vhead"><span class="tag">View 4 · answers Q2</span><h2>The five layers side by side</h2><span class="spacer"></span><button class="unclear" aria-pressed="false">Mark unclear</button></div>
+  <div class="panel mwrap">
+    <table class="lt">
+      <thead><tr><th>Rank</th><th>Layer</th><th>File in this container</th><th>Scope</th><th>Who can write it</th><th>Loaded when</th><th>After a restart</th></tr></thead>
+      <tbody>
+        <tr><td class="rk">1</td><th>Managed policy</th><td class="fp">/etc/claude-code/managed-settings.json</td><td><span class="pill p-wide">whole container</span></td><td><span class="pill p-trust">root, at image build</span><small>The app user can't edit it.</small></td><td>Always. <code>setting_sources</code> can't turn it off.</td><td>Kept, it's in the image.</td></tr>
+        <tr><td class="rk">2</td><th>Programmatic options</th><td class="gap">No file. Lives in your app's code.</td><td><span class="pill p-one">one query() call</span></td><td><span class="pill p-trust">your app</span><small>Assumes the app is trusted and builds settings from validated input.</small></td><td>Always, for the keys you set.</td><td>Kept, it's code.</td></tr>
+        <tr><td class="rk">3</td><th>Local</th><td class="fp">/work/&lt;tenant&gt;/.claude/settings.local.json</td><td><span class="pill p-one">one session (its cwd)</span></td><td><span class="pill p-taint">tenant repo + the agent</span></td><td><code>"local"</code> in the list</td><td>Lost unless /work is a volume.</td></tr>
+        <tr><td class="rk">4</td><th>Project</th><td class="fp">/work/&lt;tenant&gt;/.claude/settings.json<br>/work/&lt;tenant&gt;/CLAUDE.md</td><td><span class="pill p-one">one session (its cwd)</span></td><td><span class="pill p-taint">tenant repo + the agent</span><small>A cloned repo can bring its own .claude folder.</small></td><td><code>"project"</code> in the list</td><td>Lost unless /work is a volume.</td></tr>
+        <tr><td class="rk">5</td><th>User</th><td class="fp">/home/app/.claude/settings.json<br>/home/app/.claude/CLAUDE.md</td><td><span class="pill p-wide">every session</span></td><td><span class="pill p-taint">any session</span><small>All sessions run as user app, so any bash can write it unless srt denies it.</small></td><td><code>"user"</code> in the list</td><td>Reset to the image's copy; agent edits are lost.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note red"><b>The two layers tenants can't write are the two that don't come from <code>setting_sources</code>.</b> Options have no file, so a tenant can't reach them. Managed policy is root-owned. Every file layer sits somewhere a session's bash can write, so loading it means trusting whatever was written there last.</p>
+  <p class="note">The managed path shown is the Linux location as I understand it. Confirm it in the Claude Code settings docs before baking it into an image.</p>
+</section>
+
+<!-- VIEW 5 -->
+<section class="view" id="v5" data-view="Exercise: predict then reveal">
+  <div class="vhead"><span class="tag">View 5 · checks Q1–Q3</span><h2>Predict, then reveal</h2><span class="spacer"></span><button class="unclear" aria-pressed="false">Mark unclear</button></div>
+  <div class="ex" id="ex"></div>
+</section>
+
+<!-- FEEDBACK -->
+<section class="view" id="fb" data-view="Feedback">
+  <div class="vhead"><span class="tag">Talk back</span><h2>Ask a follow-up</h2></div>
+  <div class="fb">
+    <div class="panel">
+      <h3>Views you marked unclear</h3>
+      <p class="marked" id="marked">None yet. Use "Mark unclear" on any view.</p>
+      <button class="btn primary" id="copyAsk">Copy as prompt</button>
+      <div class="toast" id="t1" aria-live="polite"></div>
+    </div>
+    <div class="panel">
+      <h3>Re-explain it in your own words</h3>
+      <label for="mine" class="marked">Explain which config a tenant's session ends up with, and why you'd pass setting_sources=[] in a shared container.</label>
+      <textarea id="mine" placeholder="Managed policy wins over everything. Then my query() options…"></textarea>
+      <button class="btn primary" id="copyMine">Copy for checking</button>
+      <div class="toast" id="t2" aria-live="polite"></div>
+    </div>
+  </div>
+  <p class="stopnote">Stop when all three header questions have a check mark. A natural next step is writing the real managed-settings.json for the image and the srt rule that keeps agents out of <code>/work/*/.claude</code>.</p>
+</section>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+
+/* ---------- View 1: steppable container ---------- */
+const LAYERS=[
+ {id:'managed',nm:'Managed policy',fp:'/etc/claude-code/managed-settings.json'},
+ {id:'options',nm:'Programmatic options',fp:'query(options): settings, allowed_tools, agents'},
+ {id:'local',nm:'Local',fp:'<cwd>/.claude/settings.local.json'},
+ {id:'project',nm:'Project',fp:'<cwd>/.claude/settings.json + CLAUDE.md'},
+ {id:'user',nm:'User',fp:'~/.claude/settings.json'},
+];
+const CHIPS=[['managed',34,52],['options',90,48],['local',142,36],['project',182,48],['user',234,30]];
+const steps=[
+ {hot:['A','B'],lad:[],load:[],t:'Same container, new question',x:'The isolation-layers post asked who can touch which file. This one asks where each session reads its config from. The chips under each session show which settings layers it has loaded. Right now: none.',terms:['claude subprocess','cwd']},
+ {hot:['user'],lad:['user'],load:['user'],t:'User layer: one file for everyone',x:'With "user" in setting_sources, each claude process reads ~/.claude/settings.json. HOME is /home/app for every session, so A and B read the same file. It is the lowest layer.',terms:['setting_sources','user']},
+ {hot:['projA','projB'],lad:['project'],load:['user','project'],t:'Project layer: one per cwd',x:'With "project", each session reads .claude/settings.json under its own cwd, and CLAUDE.md with it. A reads /work/a, B reads /work/b. Project beats user for any key both set.',terms:['project','CLAUDE.md']},
+ {hot:['localA','localB'],lad:['local'],load:['user','project','local'],t:'Local layer: same folder, higher rank',x:'.claude/settings.local.json sits next to the project file and beats it. On a laptop it holds your personal tweaks. Here it is one more file inside the tenant\'s folder.',terms:['local']},
+ {hot:['opts'],lad:['options'],load:['user','project','local','options'],t:'Programmatic options: per query() call',x:'What your app passes to query(), such as settings=, allowed_tools or agents, beats all three file layers. It can differ per tenant. It only covers the keys you actually set; anything else still comes from the files.',terms:['settings=','allowed_tools','agents']},
+ {hot:['managed'],lad:['managed'],load:['user','project','local','options','managed'],t:'Managed policy: the ceiling',x:'managed-settings.json outranks everything, your options included, and setting_sources can\'t switch it off. Bake it into the image owned by root and the app user can\'t change it.',terms:['managed policy']},
+ {hot:['leak'],lad:['project','user'],load:['user','project','local','options','managed'],t:'The agent can edit its own config',x:'Every session runs as user app. Session A\'s bash can write /work/a/.claude/settings.json, and even ~/.claude/settings.json, which B also reads. The next query() that loads those layers uses whatever was written. A cloned repo can also arrive with a .claude folder already inside.',terms:['tenant-writable','prompt injection']},
+ {hot:['cut'],lad:[],cut:['user','project','local'],load:['options','managed'],x2:true,t:'setting_sources=[]: only code and policy remain',x:'Pass [] and the three file layers are not read. The session\'s config now comes from your options and managed policy, the two layers no tenant can write. CLAUDE.md stops loading too. That is the cost.',terms:['setting_sources=[]','settings=']},
+];
+function drawChips(g,load,cut){
+  g.innerHTML=CHIPS.map(([id,x,w])=>{
+    const cls=cut&&cut.includes(id)?'x':load.includes(id)?'on':'';
+    return `<g class="ch ${cls}"><rect x="${x}" y="0" width="${w}" height="18" rx="4"/><text x="${x+w/2}" y="12.5" text-anchor="middle">${id}</text></g>`;
+  }).join('');
+}
+let cur=0;
+const els=$$('#tree .el');
+const dots=$('#dots'); steps.forEach(()=>dots.appendChild(document.createElement('span')));
+function render(){
+  const s=steps[cur];
+  els.forEach(e=>{
+    const n=+e.dataset.s, id=e.dataset.id;
+    const visible=n<=cur && !(id==='leak'&&cur>6);
+    e.classList.toggle('off',!visible);
+    const hot=s.hot.includes(id);
+    e.classList.toggle('hot',hot);
+    e.classList.toggle('dim',visible && !hot && id!=='ctr' && id!=='cut');
+  });
+  drawChips($('#chipsA'),s.load,s.cut); drawChips($('#chipsB'),s.load,s.cut);
+  $('#ladder').innerHTML=LAYERS.map((L,i)=>`<li class="${s.lad.includes(L.id)?'hot':''} ${s.cut&&s.cut.includes(L.id)?'cut':''}"><span class="rk">${i+1}</span><span class="nm">${L.nm}</span><span class="fp">${esc(L.fp)}</span></li>`).join('');
+  $('#stepno').textContent=`Step ${cur+1} / ${steps.length}`;
+  $('#steptitle').textContent=s.t; $('#steptext').textContent=s.x;
+  $('#stepterms').innerHTML=s.terms.map(t=>`<span class="term">${esc(t)}</span>`).join('');
+  [...dots.children].forEach((d,i)=>d.classList.toggle('on',i<=cur));
+  $('#prev').disabled=cur===0;
+  $('#next').textContent=cur===steps.length-1?'Restart':'Next step';
+}
+$('#next').onclick=()=>{cur=cur===steps.length-1?0:cur+1;render()};
+$('#prev').onclick=()=>{if(cur>0){cur--;render()}};
+render();
+
+/* ---------- View 2: resolver ---------- */
+// Example values. 'taint' layers live in files a session can write.
+const COLS=[
+ {id:'user',h:'user',f:'~/.claude/settings.json',taint:true},
+ {id:'project',h:'project',f:'<cwd>/.claude/settings.json',taint:true},
+ {id:'local',h:'local',f:'<cwd>/.claude/settings.local.json',taint:true},
+ {id:'options',h:'options',f:'query(settings=…)',taint:false},
+ {id:'managed',h:'managed',f:'managed-settings.json',taint:false},
+];
+const RANK=['managed','options','local','project','user'];
+const KEYS=[
+ {k:'model',kind:'s',d:'Which model the session uses.',
+  v:{user:'claude-sonnet-5-5',project:{a:'claude-opus-5-5'},local:{b:'claude-haiku-5-5'},options:{a:'claude-sonnet-5-5',b:'claude-haiku-5-5'}}},
+ {k:'permissions.defaultMode',kind:'s',d:'Tenant A\'s repo ships bypassPermissions.',
+  v:{user:'acceptEdits',project:{a:'bypassPermissions'},options:{a:'default',b:'default'}}},
+ {k:'env.HTTPS_PROXY',kind:'s',d:'Tenant B\'s repo tries to clear the egress proxy.',
+  v:{project:{b:'""'},managed:'http://egress:3128'}},
+ {k:'permissions.deny',kind:'l',d:'Combined from every loaded layer.',
+  v:{options:{a:['Read(/work/b/**)'],b:['Read(/work/a/**)']},managed:['Bash(curl *)']}},
+ {k:'hooks.PostToolUse',kind:'l',d:'Tenant A\'s repo adds an upload hook.',
+  v:{user:['notify.sh'],project:{a:['./.claude/upload.sh']}}},
+ {k:'memory files',kind:'l',d:'CLAUDE.md loads with its source.',
+  v:{user:['~/.claude/CLAUDE.md'],project:{a:['/work/a/CLAUDE.md'],b:['/work/b/CLAUDE.md']}}},
+];
+const presetsR={
+ all:{src:['user','project','local'],opt:false},
+ allopts:{src:['user','project','local'],opt:true},
+ proj:{src:['project'],opt:true},
+ none:{src:[],opt:true},
+};
+const saved=store.get('spc.r')||{};
+let R={sess:saved.sess||'a',src:new Set(saved.src||['user','project','local']),opt:saved.opt??false,mgd:saved.mgd??true,sel:0};
+const val=(K,col,sess)=>{const x=K.v[col];if(x==null)return null;if(typeof x==='object'&&!Array.isArray(x))return x[sess]??null;return x};
+const loaded=col=>col==='options'?R.opt:col==='managed'?R.mgd:R.src.has(col);
+const fmt=v=>v==null?'·':Array.isArray(v)?v.join(', '):v;
+function resolve(K){
+  if(K.kind==='s'){
+    for(const c of RANK){if(loaded(c)&&val(K,c,R.sess)!=null)return {win:[c],items:[{v:val(K,c,R.sess),c}]}}
+    return {win:[],items:[]};
+  }
+  const items=[];const win=[];
+  RANK.forEach(c=>{const v=val(K,c,R.sess);if(loaded(c)&&v){win.push(c);v.forEach(x=>items.push({v:x,c}))}});
+  return {win,items};
+}
+function explain(K,res){
+  const who=`Session ${R.sess.toUpperCase()}`;
+  if(!res.items.length)return `${who}: no loaded layer sets ${K.k}, so the built-in default applies.`;
+  const skipped=COLS.filter(c=>!loaded(c.id)&&val(K,c.id,R.sess)!=null).map(c=>c.id);
+  const skip=skipped.length?` Not loaded, so ignored: ${skipped.join(', ')}.`:'';
+  if(K.kind==='s'){
+    const c=res.win[0];
+    const losers=RANK.slice(RANK.indexOf(c)+1).filter(x=>loaded(x)&&val(K,x,R.sess)!=null);
+    return `${who}: ${K.k} = ${res.items[0].v}, from ${c}.${losers.length?' It outranks '+losers.join(', ')+'.':''}${skip}`;
+  }
+  return `${who}: ${K.k} is a list, so every loaded layer adds to it (${res.win.join(', ')}). A higher layer can't remove an entry a lower one added.${skip}`;
+}
+function drawR(){
+  $('#sess-a').setAttribute('aria-pressed',String(R.sess==='a'));
+  $('#sess-b').setAttribute('aria-pressed',String(R.sess==='b'));
+  ['user','project','local'].forEach(s=>$('#src-'+s).checked=R.src.has(s));
+  $('#opt-on').checked=R.opt; $('#mgd-on').checked=R.mgd;
+  const srcs=['user','project','local'].filter(s=>R.src.has(s)).map(s=>`"${s}"`).join(', ');
+  $('#codeline').textContent=`query(prompt, options=ClaudeAgentOptions(\n    cwd="/work/${R.sess}",\n    setting_sources=[${srcs}],${R.opt?`\n    settings=TENANT_SETTINGS["${R.sess}"],`:''}\n))`;
+  let h='<thead><tr><th>Key</th>'+COLS.map(c=>`<th>${c.h}<small>${esc(c.f)}</small></th>`).join('')+'<th>Session '+R.sess.toUpperCase()+' gets</th></tr></thead><tbody>';
+  let tainted=0;
+  KEYS.forEach((K,i)=>{
+    const res=resolve(K);
+    h+=`<tr data-i="${i}" class="${R.sel===i?'sel':''}"><th>${esc(K.k)}<small>${esc(K.d)}</small></th>`;
+    COLS.forEach(c=>{
+      const v=val(K,c.id,R.sess);
+      const cls=['v'];
+      if(v==null)cls.push('none'); else if(!loaded(c.id))cls.push('unl'); else if(res.win.includes(c.id))cls.push(K.kind==='s'?'win':'part');
+      h+=`<td class="${cls.join(' ')}">${esc(fmt(v))}</td>`;
+    });
+    const bad=res.items.some(it=>COLS.find(c=>c.id===it.c).taint);
+    if(bad)tainted++;
+    h+=`<td class="res">${res.items.length?res.items.map(it=>{const t=COLS.find(c=>c.id===it.c).taint;return `<div class="item"><span>${esc(it.v)}</span><span class="src ${t?'s-taint':'s-trust'}">${it.c}</span></div>`}).join(''):'<span style="color:var(--muted)">default</span>'}</td></tr>`;
+  });
+  h+='</tbody>';
+  $('#rs').innerHTML=h;
+  $('#summary').innerHTML=tainted?`Session ${R.sess.toUpperCase()}: <b class="bad">${tainted} of ${KEYS.length}</b> effective values include something from a file a session can write.`:`Session ${R.sess.toUpperCase()}: <b class="ok">every effective value</b> comes from your code or managed policy.`;
+  $('#rdetail').textContent=explain(KEYS[R.sel],resolve(KEYS[R.sel]));
+  $$('#rs tbody tr').forEach(tr=>tr.onclick=()=>{R.sel=+tr.dataset.i;drawR()});
+  $$('[data-preset]').forEach(b=>{const p=presetsR[b.dataset.preset];b.setAttribute('aria-pressed',String(p.opt===R.opt&&p.src.length===R.src.size&&p.src.every(x=>R.src.has(x))))});
+  store.set('spc.r',{sess:R.sess,src:[...R.src],opt:R.opt,mgd:R.mgd});
+}
+$$('[data-sess]').forEach(b=>b.onclick=()=>{R.sess=b.dataset.sess;drawR()});
+$$('[data-src]').forEach(i=>i.onchange=()=>{i.checked?R.src.add(i.dataset.src):R.src.delete(i.dataset.src);drawR()});
+$('#opt-on').onchange=e=>{R.opt=e.target.checked;drawR()};
+$('#mgd-on').onchange=e=>{R.mgd=e.target.checked;drawR()};
+$$('[data-preset]').forEach(b=>b.onclick=()=>{const p=presetsR[b.dataset.preset];R.src=new Set(p.src);R.opt=p.opt;drawR()});
+drawR();
+
+/* ---------- View 3: derivation ---------- */
+const cons=[
+ {id:'shared',t:'Several tenants share one container',w:'Long-running and multi-agent patterns'},
+ {id:'sameuser',t:'Every session runs as the same Unix user',w:'So any session\'s bash can write ~/.claude'},
+ {id:'untrusted',t:'Tenant repos and prompts are untrusted',w:'A repo can ship .claude/; a prompt can make the agent write it'},
+ {id:'pertenant',t:'Tenants need different rules',w:'Plans, models, which folders each may read'},
+ {id:'floor',t:'Some rules must hold even if app code is wrong',w:'Egress proxy, no curl, no bypass mode'},
+ {id:'md',t:'Agents should follow the repo\'s CLAUDE.md',w:'Coding conventions, test commands'},
+];
+const choices=[
+ {t:'Leave <code>"user"</code> out of setting_sources',n:['shared','sameuser'],d:'One file for every session that any session can rewrite. Loading it lets tenant A change B\'s config.'},
+ {t:'Leave <code>"project"</code> and <code>"local"</code> out',n:['untrusted'],x:['md'],d:'Both live in /work/<tenant>, which the tenant\'s repo and the agent control.'},
+ {t:'Load <code>"project"</code>, and deny writes to <code>/work/*/.claude</code> with srt',n:['untrusted','md'],d:'You get CLAUDE.md, but the agent must not edit the files the next session will load. Still treat the repo\'s own copy as untrusted.'},
+ {t:'Load <code>"project"</code> as-is',n:['md'],x:['untrusted'],d:'Your own repo, so its .claude folder is as trusted as your code.'},
+ {t:'Per-tenant <code>settings=</code> in query()',n:['pertenant'],d:'Code is the only per-session layer a tenant can\'t edit.'},
+ {t:'Hard rules in <code>managed-settings.json</code>',n:['floor'],d:'Only managed outranks your options, and setting_sources can\'t switch it off.'},
+ {t:'<code>CLAUDE_CONFIG_DIR</code> per tenant',n:['shared','sameuser'],d:'Gives each tenant its own ~/.claude for transcripts and memory, so even files you don\'t load aren\'t shared.'},
+];
+const pats={
+ laptop:{on:[],x:'Your laptop: one user, your own files, nothing to defend against. No choice is forced. Loading every source is fine and convenient.'},
+ ci:{on:['md','floor'],x:'CI on your own repo: the repo is trusted, so load "project" as-is. Managed policy (or the runner\'s config) holds the rules every job must keep.'},
+ multi:{on:['shared','sameuser','untrusted','pertenant','floor'],x:'Multi-tenant container: drop all three file layers, put per-tenant rules in settings= and the floor in managed policy. This is setting_sources=[] plus settings.'},
+ multimd:{on:['shared','sameuser','untrusted','pertenant','floor','md'],x:'Multi-tenant with repo conventions: same as above, except "project" comes back, fenced so the agent can\'t write the .claude folder it loads from.'},
+};
+const cname=id=>({shared:'shared container',sameuser:'same Unix user',untrusted:'untrusted repos',pertenant:'per-tenant rules',floor:'hard floor',md:'needs CLAUDE.md'})[id];
+let con=new Set(store.get('spc.cons')||pats.multi.on);
+const live=ch=>ch.n.every(x=>con.has(x))&&(ch.x||[]).every(x=>!con.has(x));
+function drawDeriv(){
+  $('#cons').innerHTML=cons.map(c=>`<label class="cons" data-c="${c.id}"><input type="checkbox" id="c-${c.id}" ${con.has(c.id)?'checked':''} data-c="${c.id}"><span>${c.t}<span class="why">${c.w}</span></span></label>`).join('');
+  $('#choices').innerHTML=choices.map((ch,i)=>`<div class="choice ${live(ch)?'':'off'}" data-i="${i}"><div class="ct">${ch.t}</div><div class="reasons">${ch.n.map(x=>`<span class="${con.has(x)?'':'gone'}">${cname(x)}</span>`).join('')}${(ch.x||[]).map(x=>`<span class="${con.has(x)?'gone':''}">not ${cname(x)}</span>`).join('')}</div><small>${esc(ch.d)}</small></div>`).join('');
+  $$('#cons input').forEach(i=>i.onchange=()=>{i.checked?con.add(i.dataset.c):con.delete(i.dataset.c);store.set('spc.cons',[...con]);syncPat();drawDeriv()});
+  const rel=(ch,c)=>ch.n.includes(c)||(ch.x||[]).includes(c);
+  $$('.cons').forEach(el=>{el.onmouseenter=()=>$$('.choice').forEach((c,i)=>c.classList.toggle('hl',rel(choices[i],el.dataset.c)));el.onmouseleave=()=>$$('.choice').forEach(c=>c.classList.remove('hl'))});
+  $$('.choice').forEach(el=>{el.onmouseenter=()=>$$('.cons').forEach(c=>c.classList.toggle('hl',rel(choices[+el.dataset.i],c.dataset.c)));el.onmouseleave=()=>$$('.cons').forEach(c=>c.classList.remove('hl'))});
+}
+function syncPat(){let hit=null;$$('[data-pat]').forEach(b=>{const p=pats[b.dataset.pat];const m=p.on.length===con.size&&p.on.every(x=>con.has(x));b.setAttribute('aria-pressed',String(m));if(m)hit=p});$('#patnote').textContent=hit?hit.x:'Custom set of facts. Pick a situation to compare.'}
+$$('[data-pat]').forEach(b=>b.onclick=()=>{con=new Set(pats[b.dataset.pat].on);store.set('spc.cons',[...con]);syncPat();drawDeriv()});
+drawDeriv();syncPat();
+
+/* ---------- View 5: exercises ---------- */
+const ex=[
+ {q:1,s:'Session A. Which model does it use?',code:'setting_sources=["user", "project"]\n~/.claude/settings.json       model: claude-sonnet-5-5\n/work/a/.claude/settings.json model: claude-opus-5-5\nsettings=\'{"model": "claude-haiku-5-5"}\'',o:['sonnet','opus','haiku'],a:2,why:'Programmatic options outrank every file layer. Project would beat user, but settings= beats both.'},
+ {q:1,s:'Your settings= sets only model and permissions. Does tenant A\'s hook run?',code:'setting_sources=["project"]\n/work/a/.claude/settings.json\n  hooks.PostToolUse: ./.claude/upload.sh',o:['No, settings= overrides it','Yes, it runs'],a:1,why:'settings= only covers the keys you set. Hooks you didn\'t mention still come from the loaded project file. Drop "project", or fence the folder.'},
+ {q:2,s:'All sources load. Session A\'s agent runs this. Which sessions pick up the hook on their next query()?',code:'echo \'{"hooks": …}\' > ~/.claude/settings.json',o:['Only A','A and B','Neither'],a:1,why:'Both sessions run as user app with the same HOME, so they read the same user file. One tenant has just changed config for everyone.'},
+ {q:3,s:'Tenant B\'s repo clears the proxy. Your code sets nothing for it. Which value applies?',code:'/work/b/.claude/settings.json  env.HTTPS_PROXY: ""\nmanaged-settings.json          env.HTTPS_PROXY: http://egress:3128',o:['"" from the repo','http://egress:3128'],a:1,why:'Managed policy outranks everything, and setting_sources can\'t switch it off. That is why rules that must always hold go there.'},
+];
+const done=new Set(store.get('spc.done')||[]);
+$('#ex').innerHTML=ex.map((e,i)=>`<div class="panel card" data-i="${i}"><span class="eyebrow">Q${e.q} check</span><p class="scen">${esc(e.s)}</p><pre>${esc(e.code)}</pre><div class="opts">${e.o.map((o,j)=>`<button class="btn" data-j="${j}">${esc(o)}</button>`).join('')}</div><div class="ans" hidden></div></div>`).join('');
+$$('#ex .card').forEach(card=>{
+  const e=ex[+card.dataset.i];
+  card.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{
+    const ok=+b.dataset.j===e.a, a=card.querySelector('.ans');
+    a.hidden=false;a.className='ans '+(ok?'right':'wrong');
+    a.innerHTML=`<b>${ok?'Right.':'Not quite. Answer: '+esc(e.o[e.a])+'.'}</b>${esc(e.why)}`;
+    if(ok){done.add(card.dataset.i);store.set('spc.done',[...done]);syncQ()}
+  });
+});
+function syncQ(){[1,2,3].forEach(q=>{const all=ex.map((e,i)=>[e,i]).filter(([e])=>e.q===q).every(([,i])=>done.has(String(i)));$(`.q[data-q="${q}"]`).classList.toggle('done',all)})}
+syncQ();
+$$('.brief .q').forEach(li=>li.onclick=()=>document.getElementById(li.dataset.go).scrollIntoView({behavior:'smooth'}));
+
+/* ---------- Feedback ---------- */
+const unclear=new Set(store.get('spc.unclear')||[]);
+function syncU(){
+  $$('section.view').forEach(sec=>{const b=sec.querySelector('.unclear');if(b)b.setAttribute('aria-pressed',String(unclear.has(sec.dataset.view)))});
+  $('#marked').textContent=unclear.size?[...unclear].join(' · '):'None yet. Use "Mark unclear" on any view.';
+}
+$$('section.view .unclear').forEach(b=>b.onclick=()=>{const v=b.closest('section').dataset.view;unclear.has(v)?unclear.delete(v):unclear.add(v);store.set('spc.unclear',[...unclear]);syncU()});
+syncU();
+async function copy(text,toast){try{await navigator.clipboard.writeText(text);toast.textContent='Copied. Paste it into Claude Code.'}catch(e){toast.textContent='Copy was blocked. Select the text and copy it by hand.'}}
+$('#copyAsk').onclick=()=>{const list=[...unclear];copy(list.length?`I'm learning Claude Agent SDK settings precedence (managed policy > programmatic options > local > project > user, and setting_sources). These parts are still unclear to me:\n${list.map(x=>'- '+x).join('\n')}\nExplain each with a concrete example from a container running claude sessions A (/work/a) and B (/work/b).`:`I'm learning Claude Agent SDK settings precedence. Quiz me with 3 new "which value wins?" scenarios set in a multi-tenant container.`,$('#t1'))};
+const mine=$('#mine');mine.value=store.get('spc.mine')||'';mine.oninput=()=>store.set('spc.mine',mine.value);
+$('#copyMine').onclick=()=>copy(`Check my understanding of Claude Agent SDK settings precedence. Point out anything wrong or missing, but don't rewrite it for me:\n\n"""${mine.value||'(empty)'}"""`,$('#t2'));
+})();
+</script>
+</body>
+</html>
