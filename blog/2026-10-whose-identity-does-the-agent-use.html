@@ -1,0 +1,130 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whose identity does the agent use? — Jack Qu</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<nav class="nav"><a href="index.html">← Blog</a><a href="../index.html">Home</a></nav>
+<main class="wrap">
+<article class="post">
+  <div class="date">October 2026</div>
+  <h1>Whose identity does the agent use?</h1>
+
+  <p>When an agent calls an external system (a product catalog, an ERP, a CRM), the first auth question isn't "OAuth or API key?" It's <strong>whose identity is making the call</strong>. OAuth and SSO are only ways to get an identity. Once you know whose identity you need, the rest of the design mostly follows.</p>
+
+  <p>There are two patterns. Most real assistants need both.</p>
+
+  <h2>Pattern A: a service account</h2>
+
+  <p>The agent uses one shared service-account token for every user. It sits in a server environment variable, and there's one per deployment.</p>
+
+<pre><code>CATALOG_TOKEN = os.environ["CATALOG_SERVICE_TOKEN"]
+headers = {"Authorization": f"Bearer {CATALOG_TOKEN}"}</code></pre>
+
+  <div class="tbl"><table>
+    <tr><th>Pros</th><th>Cons</th></tr>
+    <tr><td>The simplest to build. No per-user credentials to manage.</td><td>Permission logic lives in your code, disconnected from the target system's own permission model.</td></tr>
+    <tr><td>Works even if the target system doesn't support OAuth.</td><td>A prompt injection can lead to over-reach, because the only defense is your code, not the target system.</td></tr>
+    <tr><td></td><td>Audit logs show only the service account, so you can't tell who did what.</td></tr>
+  </table></div>
+
+  <p>Use it only when <strong>all three</strong> are true:</p>
+  <ul>
+    <li>Every user sees the same data. There are no row-level permissions.</li>
+    <li>The data isn't sensitive. A leak would cost nothing real.</li>
+    <li>You don't need to trace who performed an action.</li>
+  </ul>
+  <p>Examples: a product-catalog lookup, public docs, the shared part of a knowledge base. One trap: a catalog can be public while its <em>pricing</em> isn't. Contract or customer-specific prices are per-user data and belong in Pattern B.</p>
+
+  <h2>Pattern B: the user's own identity</h2>
+
+  <p>Every request reaches the external system with the <em>current user's</em> token. With the Claude Agent SDK, I build a fresh <code>ClaudeAgentOptions</code> per request and seal the token inside the tool's closure. The model calls the tool but never sees the credential.</p>
+
+<pre><code>from claude_agent_sdk import ClaudeAgentOptions, create_sdk_mcp_server, tool
+
+def make_erp_server(user_token):
+    @tool("get_orders", "List the current user's orders", {"status": str})
+    async def get_orders(args):
+        # user_token is captured here; it never enters the prompt
+        rows = await erp_get("/orders", token=user_token, params=args)
+        return {"content": [{"type": "text", "text": json.dumps(rows)}]}
+    return create_sdk_mcp_server("erp", tools=[get_orders])
+
+def build_options(user_token, user_id):
+    return ClaudeAgentOptions(
+        mcp_servers={"erp": make_erp_server(user_token)},
+        allowed_tools=["mcp__erp__*"],
+        tools=[],                  # turn off built-in tools (Bash, Read, ...)
+        strict_mcp_config=True,    # only the servers passed here
+        setting_sources=[],        # ignore settings files on disk
+        cwd=f"/work/{user_id}",    # one working directory per user
+    )</code></pre>
+
+  <div class="tbl"><table>
+    <tr><th>Pros</th><th>Cons</th></tr>
+    <tr><td>The target system enforces permissions. The agent can never exceed what the user could do themselves.</td><td>More work to build. Users have to authorize first, or IT has to help set it up.</td></tr>
+    <tr><td>Prompt injection can't widen access: an over-reaching request is simply rejected by the target system.</td><td>The OAuth route still means managing refresh tokens.</td></tr>
+    <tr><td>Audit logs record the actual user.</td><td></td></tr>
+  </table></div>
+
+  <p>Use it for orders, customers, invoices, finance: any business data whose permissions differ by user.</p>
+
+  <h2>Three ways to get the user's token</h2>
+
+  <p>In order of preference:</p>
+  <div class="tbl"><table>
+    <tr><th>Route</th><th>What the backend stores</th><th>When</th></tr>
+    <tr><td><strong>SSO token exchange</strong> (e.g. Entra ID on-behalf-of)</td><td>No per-user credentials. Only the app's own client credential; downstream tokens are short-lived and thrown away.</td><td>The target system's API accepts tokens from your company IdP. <strong>First choice.</strong></td></tr>
+    <tr><td><strong>OAuth 2.0</strong></td><td>A refresh token per user, encrypted.</td><td>External SaaS such as Salesforce or GitHub.</td></tr>
+    <tr><td><strong>User API key</strong></td><td>A long-lived key per user, in a secrets vault.</td><td>Legacy systems that only support API keys. Last resort.</td></tr>
+  </table></div>
+
+  <p>A note on the first row: "the target uses company SSO" has to mean its <em>API</em> trusts the IdP's tokens, not just that people sign into its web UI with SSO. If only the UI is wired up, you're on the OAuth row.</p>
+
+  <p>The same idea applies to MCP servers. The MCP authorization spec forbids <strong>token passthrough</strong>: a server must not forward the client's token to an upstream API. It gets its own token for the downstream system, which is exactly what a token exchange does.</p>
+
+  <h2>OAuth's two tokens</h2>
+
+  <div class="tbl"><table>
+    <tr><th></th><th>Lifetime</th><th>Stored?</th><th>If it leaks</th></tr>
+    <tr><td><strong>Refresh token</strong></td><td>Long</td><td>Yes, encrypted</td><td>The user or IT revokes it in one click, and the whole chain dies.</td></tr>
+    <tr><td><strong>Access token</strong></td><td>Short, about an hour</td><td>No, used and discarded</td><td>Wait for it to expire.</td></tr>
+  </table></div>
+  <ul>
+    <li>For a confidential client, a refresh token can't call business APIs on its own. It only becomes an access token together with the client secret.</li>
+    <li>Each refresh can return a new refresh token. Write it back over the old one (rotation protection).</li>
+    <li>Treat <code>invalid_grant</code> as "needs re-authorization" and send the user through the connect flow again.</li>
+  </ul>
+
+  <h2>Do these in either pattern</h2>
+  <ul>
+    <li>Tokens never appear in the prompt, <code>options.env</code>, code, git, or logs.</li>
+    <li>Secrets come from environment variables or a vault. In <code>.mcp.json</code>, reference them as <code>${VAR}</code>.</li>
+    <li>Turn off built-in tools you don't need with <code>tools=[]</code>.</li>
+    <li>In multi-turn conversations, check who owns a session before resuming it, so user A can't resume user B's session.</li>
+    <li>Give each user their own working directory.</li>
+  </ul>
+
+  <h2>The two patterns together</h2>
+
+  <p>One agent can carry both:</p>
+<pre><code>mcp_servers={
+    "catalog": catalog_server,               # Pattern A: service account
+    "erp":     make_erp_server(user_token),  # Pattern B: user identity
+}</code></pre>
+  <p>Catalog questions go through the service account. Business data goes through the user's identity. This is the standard architecture for an assistant that mixes shared data with per-user data. Permissions are enforced by the target system, not by the prompt. "Only show this user their own orders" in a system prompt is not access control.</p>
+
+  <h2>The decision</h2>
+<pre><code>Is the data the same for everyone, non-sensitive, and untracked?
+├─ yes → Pattern A: service account
+└─ no  → Pattern B: the user's identity
+         ├─ target API trusts the company SSO → token exchange (no per-user credentials)
+         ├─ target supports OAuth 2.0         → store an encrypted refresh token
+         └─ API key only                      → store the key, treat it as a high-risk asset</code></pre>
+
+  <p>For how the OAuth handshake itself plays out between an MCP client, server and authorization server, see the interactive walkthrough: <a href="2026-09-mcp-oauth-two-sides.html">MCP 鉴权:OAuth 两侧分工</a>.</p>
+
+  <a class="backlink" href="index.html">← Back to all posts</a>
+</article>
+</main>
+<footer class="wrap">© 2026 Jack Qu</footer>
+</body></html>
